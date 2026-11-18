@@ -337,17 +337,16 @@ internal sealed class MainForm : FullScreenForm
         Cell(leftGrid, _clientState, 0, 4);
         left.Controls.Add(leftGrid);
 
-        var rightGrid = FormGrid(3);
+        var rightGrid = FormGrid(2);
         rightGrid.ColumnStyles.Clear();
-        rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58));
-        rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
+        rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 76));
         AddRow(rightGrid, 44);
         AddRow(rightGrid, 44);
-        Cell(rightGrid, _storePhone, 0, 0, 3);
+        Cell(rightGrid, _storePhone, 0, 0, 2);
         Cell(rightGrid, _storeName, 0, 1);
-        Cell(rightGrid, _type, 1, 1);
-        Cell(rightGrid, _insurance, 2, 1);
+        Cell(rightGrid, _insurance, 1, 1);
+        _type.Visible = false;
         rightGrid.Dock = DockStyle.Top;
         rightGrid.Height = 92;
         var tail = FormGrid(2);
@@ -626,6 +625,7 @@ internal sealed class MainForm : FullScreenForm
         AddColumn("ifatura", UiText.InvoiceNoLabel, 120);
         AddColumn("idate", UiText.InvoiceDateLabel, 110);
         AddColumn("office", "Отделение", 110);
+        _grid.Columns["office"]!.Visible = false;
         AddColumn("operator", "Принял", 110);
         AddColumn("insurance", "Страховка", 80);
         AddColumn("store", "Магазин", 140);
@@ -1000,20 +1000,7 @@ internal sealed class MainForm : FullScreenForm
             return;
         }
 
-        var bolum = _grid.Rows.Count > 0 && _grid.Rows[0].Tag is BagRecord firstBag
-            ? firstBag.Bolum
-            : (_type.SelectedItem as BolumChoice)?.Code;
-        if (string.IsNullOrEmpty(bolum))
-        {
-            MessageBox.Show(this, UiText.NeedType, UiText.TitleBag, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            _type.Focus();
-            BeginInvoke(() =>
-            {
-                if (_type.Enabled)
-                    _type.DroppedDown = true;
-            });
-            return;
-        }
+        var bolum = "2";
 
         if (!PhoneEnough(bolum))
         {
@@ -1032,9 +1019,9 @@ internal sealed class MainForm : FullScreenForm
         List<BagItem> items = [];
         if (CargoRules.NeedsContents(bolum))
         {
-            if (!_contents.TryRead(out items, out var contentsError) || items.Count == 0)
+            if (!_contents.TryRead(out items, out var contentsError))
             {
-                MessageBox.Show(this, contentsError.Length == 0 ? UiText.ContentsRequired : contentsError, UiText.ContentsTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, contentsError, UiText.ContentsTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
         }
@@ -1215,29 +1202,12 @@ internal sealed class MainForm : FullScreenForm
 
     private void FillTypes(string? keep = null)
     {
-        var selected = keep ?? (_type.SelectedItem as BolumChoice)?.Code;
-        var settings = _store.GetSettings();
-        var locked = _grid.Rows.Count > 0 ? selected : null;
+        _ = keep;
         _type.Items.Clear();
-        foreach (var choice in BolumChoice.All)
-        {
-            if (settings.IsBolumEnabled(choice.Code) || choice.Code == locked)
-                _type.Items.Add(choice);
-        }
-
-        if (selected is null)
-            return;
-
-        for (var i = 0; i < _type.Items.Count; i++)
-        {
-            if (_type.Items[i] is BolumChoice choice && choice.Code == selected)
-            {
-                _type.SelectedIndex = i;
-                return;
-            }
-        }
-
-        _type.SelectedIndex = -1;
+        var tir = BolumChoice.All.First(choice => choice.Code == "2");
+        _type.Items.Add(tir);
+        _type.SelectedIndex = 0;
+        ApplyType();
     }
 
     private void SetHeader(string name, string text)
@@ -1683,7 +1653,11 @@ internal sealed class MainForm : FullScreenForm
     {
         if (ItemRows(slot.Bag).Count() <= 1)
         {
-            MessageBox.Show(this, UiText.ContentsRequired, UiText.ContentsTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            row.Cells["mal"].Value = "";
+            row.Cells["iqty"].Value = "";
+            row.Cells["ifatura"].Value = "";
+            row.Cells["idate"].Value = "";
+            SaveItemRow(slot.Bag);
             return;
         }
 
@@ -1699,22 +1673,23 @@ internal sealed class MainForm : FullScreenForm
         {
             var name = row.Cells["mal"].Value?.ToString()?.Trim() ?? "";
             var qtyText = row.Cells["iqty"].Value?.ToString()?.Trim() ?? "";
-            if (name.Length == 0 && qtyText.Length == 0)
+            var invoiceText = row.Cells["ifatura"].Value?.ToString() ?? "";
+            var dateText = row.Cells["idate"].Value?.ToString() ?? "";
+            if (name.Length == 0 && qtyText.Length == 0 && invoiceText.Trim().Length == 0 && dateText.Trim().Length == 0)
                 continue;
-            if (name.Length == 0 || name.Length > CargoRules.ItemNameMax)
+            if (name.Length > CargoRules.ItemNameMax)
             {
-                SetStatus(name.Length == 0 ? UiText.ContentsRequired : UiText.ItemNameLong, Theme.Danger);
+                SetStatus(UiText.ItemNameLong, Theme.Danger);
                 return;
             }
 
-            if (!CargoRules.TryItemQty(qtyText, out var qty, out var error))
+            var qty = "";
+            if (qtyText.Length > 0 && !CargoRules.TryItemQty(qtyText, out qty, out var error))
             {
                 SetStatus(error, Theme.Danger);
                 return;
             }
 
-            var invoiceText = row.Cells["ifatura"].Value?.ToString() ?? "";
-            var dateText = row.Cells["idate"].Value?.ToString() ?? "";
             if (!CargoRules.TryInvoice(invoiceText, dateText, out var invoiceNo, out var invoiceDate, out var invoiceError))
             {
                 SetStatus(invoiceError, Theme.Danger);
@@ -1736,8 +1711,6 @@ internal sealed class MainForm : FullScreenForm
             line++;
         }
 
-        if (items.Count == 0)
-            return;
         _store.ReplaceItems(bag.LocalId, bag.KodId, items);
         bag.Items = items;
         foreach (DataGridViewRow row in _grid.Rows)
@@ -1830,24 +1803,14 @@ internal sealed class MainForm : FullScreenForm
 
     private void ApplyType()
     {
-        var code = (_type.SelectedItem as BolumChoice)?.Code;
         UpdateHeader();
-        var show = CargoRules.NeedsContents(code);
-        _contents.Visible = show;
-        if (show && _contents.LineCount == 0)
+        _contents.Visible = true;
+        if (_contents.LineCount == 0)
             _contents.LoadLines([]);
         FitEntry();
-        PaintIntake(code);
-        if (code is null || CargoRules.InsuranceLocked(code))
-        {
-            _insurance.Text = code is null ? "" : "0";
-            _insurance.Enabled = false;
-            return;
-        }
-
-        _insurance.Enabled = true;
-        if (_insurance.Text.Trim() is "" or "0")
-            _insurance.Text = "10";
+        PaintIntake("2");
+        _insurance.Text = "0";
+        _insurance.Enabled = false;
     }
 
     private void PaintIntake(string? code)

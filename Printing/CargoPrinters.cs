@@ -11,8 +11,8 @@ namespace CargoPlus;
 internal static class CargoPrinters
 {
     private const float LabelWidthMm = 100f;
-    private const float LabelHeightMm = 72f;
-    private const float LabelStripeMm = 10f;
+    private const float LabelHeightMm = 60f;
+    private const float LabelStripeMm = 3f;
     private const float LabelDpi = 203f;
 
     private static int LabelDots(float millimeters) => (int)Math.Round(millimeters / 25.4f * LabelDpi);
@@ -385,7 +385,7 @@ internal static class CargoPrinters
     private static float DrawBrand(Graphics graphics, AppSettings settings, float x, float y, float contentWidth, float logoHeight, Font title, Font body, Brush ink, StringFormat center)
     {
         var showCompany = PrintParts.Visible(settings, PrintParts.ReceiptFirm);
-        var showBranch = PrintParts.Visible(settings, PrintParts.ReceiptBranch) && !string.IsNullOrWhiteSpace(settings.Branch);
+        var showBranch = false;
         var company = string.IsNullOrWhiteSpace(settings.Company) ? "CARGO PLUS" : settings.Company.Trim();
         using var logo = showCompany ? BrandLogo.TryLoad(settings.LogoPath) : null;
         if (!showCompany && !showBranch)

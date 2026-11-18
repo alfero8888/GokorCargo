@@ -83,15 +83,8 @@ internal sealed class BagContentsPanel : Panel
         {
             var name = row.NameText.Trim();
             var qtyText = row.QtyText.Trim();
-            if (name.Length == 0 && qtyText.Length == 0)
+            if (name.Length == 0 && qtyText.Length == 0 && row.InvoiceText.Trim().Length == 0 && row.InvoiceDateText.Length == 0)
                 continue;
-            if (name.Length == 0)
-            {
-                error = UiText.ContentsRequired;
-                row.FocusName();
-                return false;
-            }
-
             if (name.Length > CargoRules.ItemNameMax)
             {
                 error = UiText.ItemNameLong;
@@ -99,7 +92,8 @@ internal sealed class BagContentsPanel : Panel
                 return false;
             }
 
-            if (!CargoRules.TryItemQty(qtyText, out var qty, out error))
+            var qty = "";
+            if (qtyText.Length > 0 && !CargoRules.TryItemQty(qtyText, out qty, out error))
             {
                 row.FocusQty();
                 return false;

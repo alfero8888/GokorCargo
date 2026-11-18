@@ -289,8 +289,11 @@ internal static partial class CargoRules
         return combined.Length <= 20 ? combined : combined[..20];
     }
 
-    public static string NumberPrefix(string? station, string? operatorName, string bolum) =>
-        FirstStationLetter(station) + FirstStationLetter(operatorName) + BolumChoice.Letter(bolum);
+    public static string NumberPrefix(string? station, string? operatorName, string bolum)
+    {
+        _ = station;
+        return FirstStationLetter(operatorName) + BolumChoice.Letter(string.IsNullOrEmpty(bolum) ? "2" : bolum);
+    }
 
     public static string FirstStationLetter(string? branchName)
     {
@@ -396,7 +399,7 @@ internal static partial class CargoRules
     public const int InvoiceNoMax = 40;
     public const int ItemLineMax = 50;
 
-    public static bool NeedsContents(string? bolum) => bolum is "2" or "6";
+    public static bool NeedsContents(string? bolum) => string.IsNullOrEmpty(bolum) || bolum is "2" or "6";
 
     public static string ItemUnit(string? unit) => unit?.Trim().ToLowerInvariant() switch
     {

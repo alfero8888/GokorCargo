@@ -184,16 +184,13 @@ internal sealed class SettingsForm : Form
             if (!_loading && !_fillingLetter)
                 _letterEdited = true;
         };
+        _ = hint;
+        _ = toggles;
+        _ = toggleRow;
         Theme.Stack(
             _firmPage,
             BindField(() => UiText.Company, _company),
-            BindField(() => UiText.Branch, _branch),
-            BindField(() => UiText.StationLetterLabel, _station),
-            BindLabel(() => UiText.StationLetterHint, 64),
             BindField(() => UiText.Language, _language),
-            hint,
-            toggles,
-            toggleRow,
             preview,
             buttons);
         return _firmPage;

@@ -122,10 +122,8 @@ internal sealed class SecretText : IDisposable
 
     private void Show(bool peek)
     {
-        var shown = new string('●', _value.Length);
-        if (peek && _caret > 0 && _caret <= shown.Length)
-            shown = shown[..(_caret - 1)] + _value[_caret - 1] + shown[_caret..];
-        _box.Text = shown;
+        _ = peek;
+        _box.Text = _value;
         _box.SelectionStart = Math.Clamp(_caret, 0, _box.Text.Length);
         _box.SelectionLength = 0;
     }

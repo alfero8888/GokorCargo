@@ -1371,7 +1371,7 @@ internal sealed class LocalStore
 
         using (var transaction = connection.BeginTransaction())
         {
-            foreach (var choice in BolumChoice.All)
+            foreach (var choice in BolumChoice.All.Where(item => item.Code == "2"))
             {
                 var prefix = CargoRules.NumberPrefix(letter, operatorName, choice.Code);
                 var best = Best(ReadOne(connection, transaction, prefix), FromBags(connection, transaction, prefix), FromFile(prefix));
