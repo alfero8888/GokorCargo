@@ -57,11 +57,13 @@ internal static class Program
             try
             {
                 var settings = store.GetSettings();
-                if (string.IsNullOrWhiteSpace(settings.LogoPath))
+                if (string.IsNullOrWhiteSpace(settings.LogoPath) || !File.Exists(settings.LogoPath))
                 {
                     var dir = Path.GetDirectoryName(Environment.ProcessPath);
                     var bundled = dir is null ? "" : Path.Combine(dir, "logo.png");
-                    if (File.Exists(bundled))
+                    if (!File.Exists(bundled))
+                        bundled = BrandLogo.BundledFile() ?? "";
+                    if (bundled.Length > 0 && File.Exists(bundled))
                     {
                         settings.LogoPath = BrandLogo.Import(bundled);
                         store.SaveSettings(settings);

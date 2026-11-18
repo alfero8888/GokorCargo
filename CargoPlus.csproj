@@ -9,10 +9,10 @@
     <RootNamespace>CargoPlus</RootNamespace>
     <AssemblyName>GokorCargo</AssemblyName>
     <ApplicationTitle>Gokor Cargo</ApplicationTitle>
-    <Version>1.0.2</Version>
-    <FileVersion>1.0.2.0</FileVersion>
-    <AssemblyVersion>1.0.2.0</AssemblyVersion>
-    <InformationalVersion>1.0.2</InformationalVersion>
+    <Version>1.0.3</Version>
+    <FileVersion>1.0.3.0</FileVersion>
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
+    <InformationalVersion>1.0.3</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationIcon>brand\logo.ico</ApplicationIcon>
   </PropertyGroup>
@@ -37,6 +37,10 @@
       <_Parameter1>AppVersion</_Parameter1>
       <_Parameter2>$(Version)</_Parameter2>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="brand\logo.png" />
   </ItemGroup>
 
   <ItemGroup>

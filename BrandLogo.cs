@@ -11,6 +11,22 @@ internal static class BrandLogo
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "GokorCargo");
 
+    public static string? BundledFile()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var name = assembly.GetManifestResourceNames()
+            .FirstOrDefault(item => item.EndsWith("logo.png", StringComparison.OrdinalIgnoreCase));
+        if (name is null)
+            return null;
+        using var stream = assembly.GetManifestResourceStream(name);
+        if (stream is null)
+            return null;
+        var temp = Path.Combine(Path.GetTempPath(), "gokor-logo.png");
+        using (var file = File.Create(temp))
+            stream.CopyTo(file);
+        return temp;
+    }
+
     public static string Import(string sourcePath)
     {
         using var stream = File.OpenRead(sourcePath);
