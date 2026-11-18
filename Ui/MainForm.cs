@@ -360,61 +360,36 @@ internal sealed class MainForm : FullScreenForm
 
         var rightGrid = FormGrid(2);
         rightGrid.ColumnStyles.Clear();
-        rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 76));
-        AddRow(rightGrid, 44);
-        AddRow(rightGrid, 44);
-        Cell(rightGrid, _storePhone, 0, 0, 2);
-        Cell(rightGrid, _storeName, 0, 1);
-        Cell(rightGrid, _insurance, 1, 1);
+        rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        AddRow(rightGrid, 42);
+        Cell(rightGrid, _storePhone, 0, 0);
+        Cell(rightGrid, _storeName, 1, 0);
+        _insurance.Visible = false;
         _type.Visible = false;
         rightGrid.Dock = DockStyle.Top;
-        rightGrid.Height = 92;
+        rightGrid.Height = 46;
         var tail = FormGrid(2);
         tail.ColumnStyles.Clear();
         tail.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        tail.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 118));
-        AddRow(tail, 44);
+        tail.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        AddRow(tail, 42);
         Cell(tail, _note, 0, 0);
         Cell(tail, _kilo, 1, 0);
         tail.Dock = DockStyle.Top;
-        tail.Height = 48;
-        var intakeStack = new Panel { BackColor = Color.White };
-        intakeStack.Controls.Add(tail);
-        intakeStack.Controls.Add(_contents);
-        intakeStack.Controls.Add(rightGrid);
-        var intakeScroll = new Panel
-        {
-            Dock = DockStyle.Fill,
-            AutoScroll = true,
-            BackColor = Color.White,
-        };
-        intakeScroll.Controls.Add(intakeStack);
-        void LayoutIntake()
-        {
-            var width = Math.Max(240, intakeScroll.ClientSize.Width);
-            var height = rightGrid.Height + (_contents.Visible ? _contents.Height : 0) + tail.Height;
-            var scrolled = intakeScroll.AutoScrollPosition;
-            intakeStack.SuspendLayout();
-            intakeStack.SetBounds(0, 0, width, height);
-            intakeStack.ResumeLayout(true);
-            intakeScroll.AutoScrollMinSize = new Size(0, height);
-            intakeScroll.AutoScrollPosition = new Point(-scrolled.X, -scrolled.Y);
-        }
-        _contents.LeaveToKilos += () =>
-        {
-            _kilo.Focus();
-            intakeScroll.ScrollControlIntoView(_kilo);
-        };
-        _contents.RowsChanged += LayoutIntake;
-        intakeScroll.Resize += (_, _) => LayoutIntake();
+        tail.Height = 46;
+        _contents.Dock = DockStyle.Top;
+        _right.Controls.Add(tail);
+        _right.Controls.Add(_contents);
+        _right.Controls.Add(rightGrid);
+        _contents.LeaveToKilos += () => _kilo.Focus();
+        _contents.RowsChanged += FitEntry;
         _contents.SetNames(_store.RecentItemNames());
-        _right.Controls.Add(intakeScroll);
 
         _entry = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 250,
+            Height = 360,
             ColumnCount = 2,
             Padding = new Padding(12, 8, 12, 0),
             BackColor = Theme.Bg,
@@ -436,13 +411,9 @@ internal sealed class MainForm : FullScreenForm
         gridHost.Padding = new Padding(8);
         _grid.Dock = DockStyle.Fill;
         var bagTools = new Panel { Dock = DockStyle.Top, Height = 36, BackColor = Color.White };
-        var bagFind = Theme.Box();
-        bagFind.Dock = DockStyle.Left;
-        bagFind.Width = 240;
-        bagFind.Font = Theme.Small;
-        bagFind.PlaceholderText = UiText.FindClient;
-        bagFind.TextChanged += (_, _) => FilterBags(bagFind.Text);
         _pickAll.Text = UiText.WholeBatch;
+        _pickAll.Left = 8;
+        _pickAll.Top = 6;
         _bind.Add(() => _pickAll.Text = UiText.WholeBatch);
         _pickAll.CheckedChanged += (_, _) => ToggleAllBags();
         var exportItems = Theme.Command(UiText.ExportContents, Color.FromArgb(36, 92, 130), 220);
@@ -455,7 +426,6 @@ internal sealed class MainForm : FullScreenForm
         bagTools.Controls.Add(_deletePicked);
         bagTools.Controls.Add(exportItems);
         bagTools.Controls.Add(_pickAll);
-        bagTools.Controls.Add(bagFind);
         gridHost.Controls.Add(_grid);
         gridHost.Controls.Add(bagTools);
         var gridWrap = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 12), BackColor = Theme.Bg };
@@ -1944,8 +1914,15 @@ internal sealed class MainForm : FullScreenForm
 
     private void FitEntry()
     {
-        var room = Math.Max(360, Height - 240);
-        _entry.Height = Math.Clamp((int)(room * 0.32), 230, 270);
+        if (_entry is null || _entry.IsDisposed)
+            return;
+        var right = 8;
+        foreach (Control child in _right.Controls)
+            right += child.Visible ? child.Height : 0;
+        var wanted = Math.Max(right, 186 + 190);
+        var room = Math.Max(340, ClientSize.Height - 210);
+        var cap = Math.Max(340, Math.Min(480, room));
+        _entry.Height = Math.Clamp(wanted, 340, cap);
     }
 
     private void ApplyType()

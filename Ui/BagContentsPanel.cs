@@ -203,16 +203,16 @@ internal sealed class BagContentsPanel : Panel
 
     private void Reflow()
     {
-        var width = Math.Max(640, ClientSize.Width - 8);
+        var width = Math.Max(280, ClientSize.Width - 4);
         for (var i = 0; i < _lines.Count; i++)
         {
             _lines[i].ShowCaptions = false;
             _lines[i].Width = width;
         }
 
-        _rows.SetBounds(0, 0, Math.Max(280, ClientSize.Width), _rows.Height);
+        _rows.SetBounds(0, 0, width, _rows.Height);
         _rows.PerformLayout();
-        Height = Math.Max(46, _rows.Bottom + Padding.Bottom);
+        Height = Math.Max(46, _rows.PreferredSize.Height + 2);
         RowsChanged?.Invoke();
     }
 
@@ -271,7 +271,7 @@ internal sealed class BagContentsPanel : Panel
             _name.Font = Theme.Input;
             _name.Width = 240;
             foreach (var box in new Control[] { _invoice, _invoiceDate, _name, _qty, _unit, _add, _drop })
-                box.Margin = new Padding(0, 0, 6, 0);
+                box.Margin = new Padding(0);
             FillUnits();
             _unit.SelectedIndex = 0;
             _name.KeyDown += (_, e) =>
@@ -316,21 +316,34 @@ internal sealed class BagContentsPanel : Panel
             _unit.Enter += (_, _) => _unit.BackColor = FocusMark.Paper;
             _unit.Leave += (_, _) => _unit.BackColor = Color.White;
             _captions.Controls.AddRange([_capInvoice, _capDate, _capName, _capQty, _capUnit]);
-            var boxes = new FlowLayoutPanel
+            var boxes = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Height = 40,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
+                ColumnCount = 7,
+                RowCount = 1,
                 Margin = new Padding(0),
+                Padding = new Padding(0),
             };
-            boxes.Controls.Add(_invoice);
-            boxes.Controls.Add(_invoiceDate);
-            boxes.Controls.Add(_name);
-            boxes.Controls.Add(_qty);
-            boxes.Controls.Add(_unit);
-            boxes.Controls.Add(_add);
-            boxes.Controls.Add(_drop);
+            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 138));
+            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84));
+            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
+            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
+            boxes.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            foreach (var box in new Control[] { _invoice, _invoiceDate, _name, _qty, _unit, _add, _drop })
+            {
+                box.Dock = DockStyle.Fill;
+                box.Margin = new Padding(0, 0, 4, 0);
+            }
+            boxes.Controls.Add(_invoice, 0, 0);
+            boxes.Controls.Add(_invoiceDate, 1, 0);
+            boxes.Controls.Add(_name, 2, 0);
+            boxes.Controls.Add(_qty, 3, 0);
+            boxes.Controls.Add(_unit, 4, 0);
+            boxes.Controls.Add(_add, 5, 0);
+            boxes.Controls.Add(_drop, 6, 0);
             _captions.Dock = DockStyle.Top;
             _captions.Visible = false;
             Controls.Add(boxes);
