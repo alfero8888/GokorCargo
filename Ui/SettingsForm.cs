@@ -113,7 +113,8 @@ internal sealed class SettingsForm : Form
         if (_user.IsAdmin)
             tabs.TabPages.Add(_dbPage);
         tabs.TabPages.Add(_printerPage);
-        tabs.TabPages.Add(_operatorPage);
+        if (_user.IsAdmin)
+            tabs.TabPages.Add(_operatorPage);
         tabs.TabPages.Add(_previewPage);
 
         _save = Theme.Command(UiText.Save, Theme.Accent, 160);
@@ -965,6 +966,8 @@ internal sealed class SettingsForm : Form
 
     private void AddOperator()
     {
+        if (!_user.IsAdmin)
+            return;
         using var dialog = new OperatorDialog();
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
@@ -980,6 +983,8 @@ internal sealed class SettingsForm : Form
 
     private void ChangePin()
     {
+        if (!_user.IsAdmin)
+            return;
         if (_operators.SelectedItem is not OperatorRow row)
         {
             MessageBox.Show(this, UiText.PickOperator, UiText.Pin, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -996,6 +1001,8 @@ internal sealed class SettingsForm : Form
 
     private void DeleteOperator()
     {
+        if (!_user.IsAdmin)
+            return;
         if (_operators.SelectedItem is not OperatorRow row)
         {
             MessageBox.Show(this, UiText.PickOperator, UiText.TitleOperator, MessageBoxButtons.OK, MessageBoxIcon.Information);
