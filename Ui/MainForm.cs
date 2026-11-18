@@ -10,7 +10,7 @@ internal sealed class MainForm : FullScreenForm
     private readonly SyncService _sync;
     private readonly AppUser _user;
     private readonly TextBox _code = Theme.Box();
-    private readonly ListBox _matches = new() { Font = Theme.Small, IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
+    private readonly ListBox _matches = new() { Font = new Font("Segoe UI", 14f, FontStyle.Bold), IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
     private readonly System.Windows.Forms.Timer _searchTimer = new() { Interval = 250 };
     private Button _addClient = null!;
     private bool _searchMute;
@@ -414,7 +414,7 @@ internal sealed class MainForm : FullScreenForm
         _entry = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 460,
+            Height = 250,
             ColumnCount = 2,
             Padding = new Padding(12, 8, 12, 0),
             BackColor = Theme.Bg,
@@ -633,6 +633,9 @@ internal sealed class MainForm : FullScreenForm
     private void SetupGrid()
     {
         PrepareGrid(_grid);
+        _grid.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
+        _grid.RowTemplate.Height = 32;
+        _grid.ColumnHeadersHeight = 34;
         _grid.ReadOnly = false;
         _grid.Columns.Add(new DataGridViewCheckBoxColumn
         {
@@ -701,16 +704,23 @@ internal sealed class MainForm : FullScreenForm
                 return;
             var column = _grid.Columns[e.ColumnIndex].Name;
             var tag = _grid.Rows[e.RowIndex].Tag;
-            var itemEdit = tag is ItemSlot && column is "mal" or "iqty" or "iunit" or "ifatura" or "idate";
+            var goods = column is "mal" or "iqty" or "iunit" or "ifatura" or "idate";
+            var itemEdit = goods && tag is ItemSlot or BagRecord;
             var pick = tag is BagRecord && column == "pick";
             if (!itemEdit && !pick)
                 e.Cancel = true;
         };
         _grid.CellEndEdit += (_, e) =>
         {
-            if (e.RowIndex < 0 || _grid.Rows[e.RowIndex].Tag is not ItemSlot slot)
+            if (e.RowIndex < 0)
                 return;
-            SaveItemRow(slot.Bag);
+            var column = _grid.Columns[e.ColumnIndex].Name;
+            if (column is not ("mal" or "iqty" or "iunit" or "ifatura" or "idate"))
+                return;
+            var tag = _grid.Rows[e.RowIndex].Tag;
+            var bag = tag as BagRecord ?? (tag as ItemSlot)?.Bag;
+            if (bag is not null)
+                SaveItemRow(bag);
         };
         _grid.DataError += (_, e) => e.ThrowException = false;
         _grid.CellContentClick += (_, e) =>
@@ -1650,17 +1660,18 @@ internal sealed class MainForm : FullScreenForm
 
     private void AddRow(BagRecord bag)
     {
+        var first = bag.Items.FirstOrDefault();
         var index = _grid.Rows.Add(
             false,
             bag.KodId,
             bag.TrackCode,
             bag.Kilo,
             BolumChoice.TitleOf(bag.Bolum),
-            CargoRules.ContentsBrief(bag.Items),
-            "",
-            "",
-            "",
-            "",
+            first?.Name ?? "",
+            first?.Qty ?? "",
+            first is null ? "" : UiText.UnitLabel(first.Unit),
+            first?.InvoiceNo ?? "",
+            first is null ? "" : CargoRules.InvoiceDateText(first.InvoiceDate),
             bag.Office,
             bag.OperatorName,
             bag.Sigorta.ToString(CultureInfo.InvariantCulture),
@@ -1674,7 +1685,7 @@ internal sealed class MainForm : FullScreenForm
         row.Cells["edit"].ToolTipText = CargoRules.NeedsContents(bag.Bolum) ? UiText.AddGoodsTip : "";
         row.Cells["drop"].Value = UiText.Delete;
         row.Cells["drop"].ToolTipText = UiText.DeleteBagTip;
-        foreach (var item in bag.Items)
+        foreach (var item in bag.Items.Skip(1))
             InsertItemRow(bag, item);
         if (_pickAll.Checked)
         {
@@ -1789,25 +1800,24 @@ internal sealed class MainForm : FullScreenForm
 
     private void RemoveItemRow(DataGridViewRow row, ItemSlot slot)
     {
-        if (ItemRows(slot.Bag).Count() <= 1)
-        {
-            row.Cells["mal"].Value = "";
-            row.Cells["iqty"].Value = "";
-            row.Cells["ifatura"].Value = "";
-            row.Cells["idate"].Value = "";
-            SaveItemRow(slot.Bag);
-            return;
-        }
-
         _grid.Rows.Remove(row);
         SaveItemRow(slot.Bag);
+    }
+
+    private IEnumerable<DataGridViewRow> GoodsRows(BagRecord bag)
+    {
+        foreach (DataGridViewRow row in _grid.Rows)
+        {
+            if (row.Tag == bag || (row.Tag is ItemSlot slot && slot.Bag == bag))
+                yield return row;
+        }
     }
 
     private void SaveItemRow(BagRecord bag)
     {
         var items = new List<BagItem>();
         var line = 1;
-        foreach (var row in ItemRows(bag))
+        foreach (var row in GoodsRows(bag))
         {
             var name = row.Cells["mal"].Value?.ToString()?.Trim() ?? "";
             var qtyText = row.Cells["iqty"].Value?.ToString()?.Trim() ?? "";
@@ -1855,7 +1865,6 @@ internal sealed class MainForm : FullScreenForm
         {
             if (row.Tag != bag)
                 continue;
-            row.Cells["mal"].Value = CargoRules.ContentsBrief(items);
             row.Cells["mal"].ToolTipText = CargoRules.ContentsText(items);
             break;
         }
@@ -1936,7 +1945,7 @@ internal sealed class MainForm : FullScreenForm
     private void FitEntry()
     {
         var room = Math.Max(360, Height - 240);
-        _entry.Height = Math.Clamp((int)(room * 0.42), 300, 380);
+        _entry.Height = Math.Clamp((int)(room * 0.32), 230, 270);
     }
 
     private void ApplyType()
