@@ -55,6 +55,9 @@ internal sealed class PrintWords
         _ => code,
     };
 
-    public static PrintWords From(AppSettings settings) =>
-        new() { Turkish = !string.Equals(settings.Language, "ru", StringComparison.OrdinalIgnoreCase) };
+    public static PrintWords From(AppSettings settings)
+    {
+        _ = settings;
+        return new() { Turkish = true };
+    }
 }

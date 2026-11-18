@@ -174,7 +174,7 @@ internal sealed class LocalStore
             count.CommandText = "SELECT COUNT(*) FROM operators";
             var operators = Convert.ToInt32(count.ExecuteScalar(), CultureInfo.InvariantCulture);
             if (operators == 0)
-                InsertOperator(connection, "Администратор", AccessLevels.Admin, "Администрация", "0000");
+                InsertOperator(connection, "Ադմինիստրատոր", AccessLevels.Admin, "Վարչություն", "0000");
 
             KeepBagRange(connection);
             AlignUnlocked(connection, ReadSettings(connection), null);

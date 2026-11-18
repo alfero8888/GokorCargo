@@ -190,7 +190,6 @@ internal sealed class SettingsForm : Form
         Theme.Stack(
             _firmPage,
             BindField(() => UiText.Company, _company),
-            BindField(() => UiText.Language, _language),
             preview,
             buttons);
         return _firmPage;

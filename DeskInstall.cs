@@ -136,18 +136,12 @@ internal static class DeskInstall
         return new Version(info.FileMajorPart, info.FileMinorPart, Math.Max(0, info.FileBuildPart), Math.Max(0, info.FilePrivatePart));
     }
 
-    private static bool Turkish =>
-        CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("tr", StringComparison.OrdinalIgnoreCase);
+    private static string InstallText =>
+        "Այս համակարգչում Gokor Cargo դեռ տեղադրված չէ։ Այն կտեղադրվի Program Files-ում, աշխատասեղանին կհայտնվի դյուրանցում։ Windows-ը թույլտվություն կխնդրի։";
 
-    private static string InstallText => Turkish
-        ? "Bu bilgisayarda Gokor Cargo kurulu değil. Program Files klasörüne kurulacak ve masaüstüne kısayol konacak. Windows izin isteyecek."
-        : "На этом компьютере Gokor Cargo ещё не установлена. Она установится в Program Files, на рабочем столе появится ярлык. Windows спросит разрешение.";
+    private static string NewerText =>
+        "Տեղադրված Gokor Cargo-ն կփոխարինվի այս տարբերակով։ Windows-ը թույլտվություն կխնդրի։";
 
-    private static string NewerText => Turkish
-        ? "Kurulu Gokor Cargo bu sürümle değiştirilecek. Windows izin isteyecek."
-        : "Установленная Gokor Cargo будет заменена этой версией. Windows спросит разрешение.";
-
-    private static string CancelledText => Turkish
-        ? "Kurulum iptal edildi."
-        : "Установка отменена.";
+    private static string CancelledText =>
+        "Տեղադրումը չեղարկվեց։";
 }

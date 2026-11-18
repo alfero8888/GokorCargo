@@ -15,7 +15,7 @@ internal sealed class AboutForm : Form
         Font = Theme.Ui;
         BackColor = Theme.Bg;
 
-        var culture = AppLanguage.Turkish ? new CultureInfo("tr-TR") : new CultureInfo("ru-RU");
+        var culture = new CultureInfo("hy-AM");
         var date = AppRelease.Released.ToString("d MMMM yyyy", culture);
         var facts = new TableLayoutPanel
         {

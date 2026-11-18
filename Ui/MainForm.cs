@@ -551,8 +551,8 @@ internal sealed class MainForm : FullScreenForm
         SetHeader("kilo", UiText.ColKilo);
         SetHeader("type", UiText.ColType);
         SetHeader("mal", UiText.MalColumn);
-        SetHeader("iqty", AppLanguage.Turkish ? "Miktar" : "Кол-во");
-        SetHeader("iunit", AppLanguage.Turkish ? "Birim" : "Ед.");
+        SetHeader("iqty", "Քանակ");
+        SetHeader("iunit", "Միավոր");
         SetHeader("ifatura", UiText.InvoiceNoLabel);
         SetHeader("idate", UiText.InvoiceDateLabel);
         SetHeader("office", UiText.OfficeColumn);
@@ -1560,14 +1560,13 @@ internal sealed class MainForm : FullScreenForm
         };
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
-        var tr = AppLanguage.Turkish;
         ExcelSheet.Save(dialog.FileName,
         [
             UiText.ColBag,
-            tr ? "Satır" : "Строка",
-            tr ? "Ürün" : "Товар",
-            tr ? "Miktar" : "Количество",
-            tr ? "Birim" : "Единица",
+            "Տող",
+            "Ապրանք",
+            "Քանակ",
+            "Միավոր",
             UiText.InvoiceNoLabel,
             UiText.InvoiceDateLabel,
             UiText.ColTrack,
@@ -2342,15 +2341,14 @@ internal sealed class MainForm : FullScreenForm
             }
         }
 
-        var tr = AppLanguage.Turkish;
         SaveExcel(
             $"mal-{_reportFrom.Value:yyyyMMdd}-{_reportTo.Value:yyyyMMdd}.xlsx",
             [
                 UiText.ColBag,
-                tr ? "Satır" : "Строка",
-                tr ? "Ürün" : "Товар",
-                tr ? "Miktar" : "Количество",
-                tr ? "Birim" : "Единица",
+                "Տող",
+                "Ապրանք",
+                "Քանակ",
+                "Միավոր",
                 UiText.ColTrack,
                 UiText.ColTime,
                 UiText.ColType,

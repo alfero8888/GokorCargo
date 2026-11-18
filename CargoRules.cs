@@ -9,8 +9,11 @@ internal static class AppLanguage
 {
     public static bool Turkish { get; private set; } = true;
 
-    public static void Use(AppSettings settings) =>
-        Turkish = !string.Equals(settings.Language, "ru", StringComparison.OrdinalIgnoreCase);
+    public static void Use(AppSettings settings)
+    {
+        _ = settings;
+        Turkish = false;
+    }
 }
 
 internal sealed record BolumChoice(string Code, string Title, string TurkishTitle)
@@ -20,7 +23,7 @@ internal sealed record BolumChoice(string Code, string Title, string TurkishTitl
     public static readonly BolumChoice[] All =
     [
         new("1", "Авиа", "Avia"),
-        new("2", "Тир", "Tır"),
+        new("2", "Տիր", "Tır"),
         new("3", "Эманет", "Emanet"),
         new("4", "Пакет", "Paket"),
         new("6", "Играджат", "İhracat"),
