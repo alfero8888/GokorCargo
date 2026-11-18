@@ -2,12 +2,9 @@ namespace CargoPlus;
 
 internal sealed class BagContentsPanel : Panel
 {
-    private readonly FlowLayoutPanel _rows = new()
+    private readonly Panel _rows = new()
     {
         Dock = DockStyle.Top,
-        AutoSize = true,
-        FlowDirection = FlowDirection.TopDown,
-        WrapContents = false,
         BackColor = Color.White,
     };
     private readonly AutoCompleteStringCollection _names = new();
@@ -22,13 +19,9 @@ internal sealed class BagContentsPanel : Panel
         AutoSize = false;
         BackColor = Color.White;
         Padding = new Padding(0, 0, 0, 2);
-        _rows.Dock = DockStyle.None;
+        _rows.Dock = DockStyle.Top;
         Controls.Add(_rows);
-        Resize += (_, _) =>
-        {
-            foreach (var row in _lines)
-                row.Width = Math.Max(280, _rows.ClientSize.Width - 8);
-        };
+        Resize += (_, _) => Reflow();
     }
 
     public void ApplyLanguage()
@@ -201,19 +194,34 @@ internal sealed class BagContentsPanel : Panel
         _lines[Math.Max(0, Math.Min(index, _lines.Count - 1))].FocusInvoice();
     }
 
+    private int _laying;
+
     private void Reflow()
     {
-        var width = Math.Max(280, ClientSize.Width - 4);
-        for (var i = 0; i < _lines.Count; i++)
+        if (_laying > 0)
+            return;
+        _laying++;
+        try
         {
-            _lines[i].ShowCaptions = false;
-            _lines[i].Width = width;
-        }
+            var width = Math.Max(520, ClientSize.Width);
+            var y = 0;
+            foreach (var line in _lines)
+            {
+                line.ShowCaptions = false;
+                line.SetBounds(0, y, width, 46);
+                y += 48;
+            }
 
-        _rows.SetBounds(0, 0, width, _rows.Height);
-        _rows.PerformLayout();
-        Height = Math.Max(46, _rows.PreferredSize.Height + 2);
-        RowsChanged?.Invoke();
+            _rows.Height = Math.Max(48, y);
+            var next = _rows.Height + Padding.Bottom;
+            if (Height != next)
+                Height = next;
+            RowsChanged?.Invoke();
+        }
+        finally
+        {
+            _laying--;
+        }
     }
 
     private sealed class ItemRow : Panel
@@ -316,38 +324,18 @@ internal sealed class BagContentsPanel : Panel
             _unit.Enter += (_, _) => _unit.BackColor = FocusMark.Paper;
             _unit.Leave += (_, _) => _unit.BackColor = Color.White;
             _captions.Controls.AddRange([_capInvoice, _capDate, _capName, _capQty, _capUnit]);
-            var boxes = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 7,
-                RowCount = 1,
-                Margin = new Padding(0),
-                Padding = new Padding(0),
-            };
-            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 138));
-            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84));
-            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
-            boxes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
-            boxes.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            foreach (var box in new Control[] { _invoice, _invoiceDate, _name, _qty, _unit, _add, _drop })
-            {
-                box.Dock = DockStyle.Fill;
-                box.Margin = new Padding(0, 0, 4, 0);
-            }
-            boxes.Controls.Add(_invoice, 0, 0);
-            boxes.Controls.Add(_invoiceDate, 1, 0);
-            boxes.Controls.Add(_name, 2, 0);
-            boxes.Controls.Add(_qty, 3, 0);
-            boxes.Controls.Add(_unit, 4, 0);
-            boxes.Controls.Add(_add, 5, 0);
-            boxes.Controls.Add(_drop, 6, 0);
+            Controls.Add(_invoice);
+            Controls.Add(_invoiceDate);
+            Controls.Add(_name);
+            Controls.Add(_qty);
+            Controls.Add(_unit);
+            Controls.Add(_add);
+            Controls.Add(_drop);
             _captions.Dock = DockStyle.Top;
             _captions.Visible = false;
-            Controls.Add(boxes);
             Controls.Add(_captions);
+            Resize += (_, _) => Place();
+            Place();
             FieldTip.Bind(_invoice, () => UiText.TipInvoice);
             FieldTip.Bind(_invoiceDate, () => UiText.InvoiceDateFull);
             FieldTip.Bind(_name, () => UiText.TipGoodsName);
@@ -370,16 +358,49 @@ internal sealed class BagContentsPanel : Panel
             }
         }
 
+        private void Place()
+        {
+            if (ClientSize.Width < 80)
+                return;
+            var gap = 6;
+            var h = Math.Max(36, ClientSize.Height);
+            var btn = 44;
+            var qtyW = 84;
+            var unitW = 108;
+            var dateW = 156;
+            var invW = 170;
+            var tail = qtyW + unitW + btn + btn + gap * 4;
+            var nameW = ClientSize.Width - invW - dateW - tail - gap * 2;
+            if (nameW < 160)
+            {
+                var need = 160 - nameW;
+                var cut = Math.Min(need, Math.Max(0, invW - 110));
+                invW -= cut;
+                need -= cut;
+                dateW = Math.Max(130, dateW - need);
+                nameW = ClientSize.Width - invW - dateW - tail - gap * 2;
+            }
+
+            var x = 0;
+            void Put(Control box, int w)
+            {
+                box.Dock = DockStyle.None;
+                box.SetBounds(x, 0, Math.Max(36, w), h);
+                x += box.Width + gap;
+            }
+
+            Put(_invoice, invW);
+            Put(_invoiceDate, dateW);
+            Put(_name, Math.Max(160, nameW));
+            Put(_qty, qtyW);
+            Put(_unit, unitW);
+            Put(_add, btn);
+            Put(_drop, btn);
+        }
+
         private void FitName()
         {
-            var used = _invoice.Width + _invoiceDate.Width + _qty.Width + _unit.Width + _add.Width + _drop.Width + 56;
-            var name = Math.Max(140, Width - used);
-            _name.Width = name;
-            _capInvoice.Width = _invoice.Width;
-            _capDate.Width = _invoiceDate.Width;
-            _capName.Width = name;
-            _capQty.Width = _qty.Width;
-            _capUnit.Width = _unit.Width;
+            Place();
         }
 
         private static Label Caption() => new()

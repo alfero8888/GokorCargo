@@ -1,7 +1,7 @@
 #ifndef SourceExe
   #define SourceExe "GokorCargo.exe"
 #endif
-#define MyVersion "1.0.10"
+#define MyVersion "1.0.11"
 
 [Setup]
 AppId={{B8D4F2C5-1A3E-4D7B-9C26-7F5E3A1B02D4}
@@ -22,7 +22,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\brand\logo.ico
 UninstallDisplayIcon={app}\logo.ico
-VersionInfoVersion=1.0.10.0
+VersionInfoVersion=1.0.11.0
 VersionInfoCompany=Gokor Cargo
 VersionInfoProductName=Gokor Cargo
 VersionInfoDescription=Gokor Cargo setup
