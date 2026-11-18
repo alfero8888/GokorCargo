@@ -38,32 +38,32 @@ Name: "tr"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [CustomMessages]
-tr.LaunchApp=Cargo Plus'ı başlat
-ru.LaunchApp=Запустить Cargo Plus
-tr.AutoStart=Bilgisayar açılınca Cargo Plus başlasın
-ru.AutoStart=Запускать Cargo Plus при включении компьютера
-tr.Need64=Cargo Plus yalnızca 64 bit Windows'a kurulur.
-ru.Need64=Cargo Plus ставится только на 64-битную Windows.
-tr.OsTooOld=Bu Windows çok eski. Cargo Plus için Windows 10 (1607) veya Windows 11 gerekir. .NET Framework 3 gerekmez.
-ru.OsTooOld=Эта Windows слишком старая. Для Cargo Plus нужна Windows 10 (1607) или Windows 11. .NET Framework 3 не нужен.
-tr.NeedRuntime=Bu bilgisayarda .NET 10 masaüstü ortamı yok. Cargo Plus onu ister. İndirip kurulsun mu? İndirme bitince kurulum yeniden kontrol eder.
-ru.NeedRuntime=На этом компьютере нет среды .NET 10 для программ Windows. Cargo Plus её требует. Скачать и установить? После загрузки установка проверит ещё раз.
+tr.LaunchApp=Gokor Cargo'yu başlat
+ru.LaunchApp=Запустить Gokor Cargo
+tr.AutoStart=Bilgisayar açılınca Gokor Cargo başlasın
+ru.AutoStart=Запускать Gokor Cargo при включении компьютера
+tr.Need64=Gokor Cargo yalnızca 64 bit Windows'a kurulur.
+ru.Need64=Gokor Cargo ставится только на 64-битную Windows.
+tr.OsTooOld=Bu Windows çok eski. Gokor Cargo için Windows 10 (1607) veya Windows 11 gerekir.
+ru.OsTooOld=Эта Windows слишком старая. Для Gokor Cargo нужна Windows 10 (1607) или Windows 11.
+tr.NeedRuntime=Bu bilgisayarda .NET 10 masaüstü ortamı yok. Gokor Cargo onu ister. İndirip kurulsun mu? İndirme bitince kurulum yeniden kontrol eder.
+ru.NeedRuntime=На этом компьютере нет среды .NET 10 для программ Windows. Gokor Cargo её требует. Скачать и установить? После загрузки установка проверит ещё раз.
 tr.DownloadingRuntime=.NET 10 indiriliyor...
 ru.DownloadingRuntime=Скачиваю .NET 10...
 tr.InstallingRuntime=.NET 10 kuruluyor...
 ru.InstallingRuntime=Устанавливаю .NET 10...
-tr.RuntimeBundled=Ayrı .NET 10 kurulamadı. Cargo Plus kendi içinde .NET 10 taşıyor, kurulum devam ediyor.
-ru.RuntimeBundled=Отдельную среду .NET 10 поставить не удалось. Внутри Cargo Plus она уже есть, установка продолжается.
-tr.RuntimeDeclined=Ayrı .NET 10 kurulmayacak. Cargo Plus kendi içinde .NET 10 taşıyor, kurulum devam ediyor.
-ru.RuntimeDeclined=Отдельную среду .NET 10 ставить не будем. Внутри Cargo Plus она уже есть, установка продолжается.
+tr.RuntimeBundled=Ayrı .NET 10 kurulamadı. Gokor Cargo kendi içinde .NET 10 taşıyor, kurulum devam ediyor.
+ru.RuntimeBundled=Отдельную среду .NET 10 поставить не удалось. Внутри Gokor Cargo она уже есть, установка продолжается.
+tr.RuntimeDeclined=Ayrı .NET 10 kurulmayacak. Gokor Cargo kendi içinde .NET 10 taşıyor, kurulum devam ediyor.
+ru.RuntimeDeclined=Отдельную среду .NET 10 ставить не будем. Внутри Gokor Cargo она уже есть, установка продолжается.
 tr.CheckingUpdate=Sunucudaki son sürüm kontrol ediliyor...
 ru.CheckingUpdate=Проверяю последнюю версию на сервере...
-tr.FinishedOk=Cargo Plus kuruldu. Sunucuda daha yeni sürüm yok.
-ru.FinishedOk=Cargo Plus установлена. На сервере нет версии новее.
-tr.FinishedUpdated=Cargo Plus kuruldu ve sunucudaki son sürüme güncellendi.
-ru.FinishedUpdated=Cargo Plus установлена и обновлена до последней версии с сервера.
-tr.FinishedNoCheck=Cargo Plus kuruldu. Sunucuya bakılamadı, bu sürüm kaldı.
-ru.FinishedNoCheck=Cargo Plus установлена. Сервер не ответил, осталась эта версия.
+tr.FinishedOk=Gokor Cargo kuruldu. Sunucuda daha yeni sürüm yok.
+ru.FinishedOk=Gokor Cargo установлена. На сервере нет версии новее.
+tr.FinishedUpdated=Gokor Cargo kuruldu ve sunucudaki son sürüme güncellendi.
+ru.FinishedUpdated=Gokor Cargo установлена и обновлена до последней версии с сервера.
+tr.FinishedNoCheck=Gokor Cargo kuruldu. Sunucuya bakılamadı, bu sürüm kaldı.
+ru.FinishedNoCheck=Gokor Cargo установлена. Сервер не ответил, осталась эта версия.
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
