@@ -33,6 +33,8 @@ internal sealed class ClientInfo
     public required string Name { get; init; }
     public required string Surname { get; init; }
     public required string Phone { get; init; }
+    public string Phone2 { get; init; } = "";
+    public string Notes { get; init; } = "";
 
     public string FullName
     {
@@ -41,6 +43,19 @@ internal sealed class ClientInfo
             var text = $"{Name} {Surname}".Trim();
             return text.Length == 0 ? "—" : text;
         }
+    }
+}
+
+internal sealed class ClientLine
+{
+    public ClientLine(ClientInfo client) => Client = client;
+
+    public ClientInfo Client { get; }
+
+    public override string ToString()
+    {
+        var phone = string.Join(" · ", new[] { Client.Phone, Client.Phone2 }.Where(text => text.Trim().Length > 0));
+        return phone.Length == 0 ? $"{Client.Kod}   {Client.FullName}" : $"{Client.Kod}   {Client.FullName}   {phone}";
     }
 }
 

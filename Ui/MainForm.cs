@@ -10,6 +10,10 @@ internal sealed class MainForm : FullScreenForm
     private readonly SyncService _sync;
     private readonly AppUser _user;
     private readonly TextBox _code = Theme.Box();
+    private readonly ListBox _matches = new() { Font = Theme.Ui, IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
+    private readonly System.Windows.Forms.Timer _searchTimer = new() { Interval = 250 };
+    private Button _addClient = null!;
+    private bool _searchMute;
     private readonly TextBox _storePhone = Theme.Box();
     private readonly TextBox _storeName = Theme.Box();
     private readonly TextBox _insurance = Theme.Box();
@@ -164,8 +168,8 @@ internal sealed class MainForm : FullScreenForm
         _user = user;
         _sync = new SyncService(store, _remote) { OperatorName = user.Name };
         Text = UiText.WindowTitle(_store.GetSettings().Company);
-        _code.MaxLength = 10;
-        _code.Font = Theme.Digits;
+        _code.MaxLength = 60;
+        _code.Font = Theme.Input;
         _storePhone.Font = Theme.Digits;
         _insurance.Font = Theme.Digits;
         _kilo.Font = Theme.Digits;
@@ -302,15 +306,15 @@ internal sealed class MainForm : FullScreenForm
 
         var left = Theme.CardPanel();
         _right = Theme.CardPanel();
-        var find = Theme.Command(UiText.CheckCode, Theme.Accent, 160);
-        find.AutoSize = true;
-        find.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        find.Padding = new Padding(12, 0, 12, 0);
-        find.Margin = new Padding(8, 1, 0, 1);
-        find.Dock = DockStyle.None;
-        find.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-        _bind.Add(() => find.Text = UiText.CheckCode);
-        find.Click += async (_, _) => await FindAsync();
+        _addClient = Theme.Command(UiText.AddClient, Theme.Accent, 160);
+        _addClient.AutoSize = true;
+        _addClient.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _addClient.Padding = new Padding(12, 0, 12, 0);
+        _addClient.Margin = new Padding(8, 1, 0, 1);
+        _addClient.Dock = DockStyle.None;
+        _addClient.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+        _bind.Add(() => _addClient.Text = UiText.AddClient);
+        _addClient.Click += async (_, _) => await AddClientAsync();
         var codeRow = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -322,7 +326,7 @@ internal sealed class MainForm : FullScreenForm
         codeRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         codeRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         codeRow.Controls.Add(_code, 0, 0);
-        codeRow.Controls.Add(find, 1, 0);
+        codeRow.Controls.Add(_addClient, 1, 0);
 
         var leftGrid = FormGrid(1);
         AddRow(leftGrid, 34);
@@ -335,6 +339,23 @@ internal sealed class MainForm : FullScreenForm
         Cell(leftGrid, _clientName, 0, 2);
         Cell(leftGrid, _clientPhone, 0, 3);
         Cell(leftGrid, _clientState, 0, 4);
+        leftGrid.Dock = DockStyle.Top;
+        leftGrid.Height = 186;
+        _matches.Dock = DockStyle.Fill;
+        _matches.MouseClick += (_, _) =>
+        {
+            if (_matches.SelectedItem is ClientLine line)
+                ChooseClient(line.Client);
+        };
+        _matches.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter && _matches.SelectedItem is ClientLine line)
+            {
+                e.SuppressKeyPress = true;
+                ChooseClient(line.Client);
+            }
+        };
+        left.Controls.Add(_matches);
         left.Controls.Add(leftGrid);
 
         var rightGrid = FormGrid(2);
@@ -393,7 +414,7 @@ internal sealed class MainForm : FullScreenForm
         _entry = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 320,
+            Height = 460,
             ColumnCount = 2,
             Padding = new Padding(12, 8, 12, 0),
             BackColor = Theme.Bg,
@@ -467,7 +488,7 @@ internal sealed class MainForm : FullScreenForm
         _work.Controls.Add(_entry);
         _work.Controls.Add(footer);
         FieldTip.Bind(_code, () => UiText.TipClientCode);
-        FieldTip.Bind(find, () => UiText.TipCheckCode);
+        FieldTip.Bind(_addClient, () => UiText.TipCheckCode);
         FieldTip.Bind(_storePhone, () => UiText.TipStorePhone);
         FieldTip.Bind(_storeName, () => UiText.TipStoreName);
         FieldTip.Bind(_type, () => UiText.TipType);
@@ -561,7 +582,7 @@ internal sealed class MainForm : FullScreenForm
         SetHeader("store", UiText.ColStore);
         SetHeader("time", UiText.ColTime);
         SetHeader("sync", UiText.ColServer);
-        _code.PlaceholderText = UiText.ClientCode;
+        _code.PlaceholderText = UiText.FindClient;
         _storePhone.PlaceholderText = UiText.StorePhone;
         _storeName.PlaceholderText = UiText.StoreName;
         _insurance.PlaceholderText = UiText.Insurance;
@@ -763,15 +784,35 @@ internal sealed class MainForm : FullScreenForm
 
     private void Wire()
     {
-        _code.KeyPress += DigitsOnly;
         _insurance.KeyPress += DigitsOnly;
         _kilo.KeyPress += KiloChar;
+        _searchTimer.Tick += async (_, _) =>
+        {
+            _searchTimer.Stop();
+            await SearchRemoteAsync();
+        };
+        _code.TextChanged += (_, _) =>
+        {
+            if (_searchMute)
+                return;
+            RefreshMatches();
+            _searchTimer.Stop();
+            _searchTimer.Start();
+        };
         _code.KeyDown += async (_, e) =>
         {
+            if (e.KeyCode == Keys.Down && _matches.Items.Count > 0)
+            {
+                e.SuppressKeyPress = true;
+                _matches.Focus();
+                _matches.SelectedIndex = 0;
+                return;
+            }
+
             if (e.KeyCode != Keys.Enter)
                 return;
             e.SuppressKeyPress = true;
-            await FindAsync();
+            await TakeMatchAsync();
         };
         _storePhone.KeyPress += PhoneChar;
         _storePhone.KeyDown += (_, e) =>
@@ -876,7 +917,7 @@ internal sealed class MainForm : FullScreenForm
             return;
         }
 
-        _client = new ClientInfo
+        _client = _store.FindCachedClient(_session.Kod) ?? new ClientInfo
         {
             Kod = _session.Kod,
             Name = _session.ClientName,
@@ -898,95 +939,179 @@ internal sealed class MainForm : FullScreenForm
         UpdateCount();
         GateFields();
         ShowOfflineNote(WorkingOffline());
+        SetSearchLocked(true);
     }
 
-    private async Task FindAsync()
+    private void RefreshMatches()
     {
-        if (_busy)
+        if (_session is not null)
+        {
+            _matches.Items.Clear();
             return;
+        }
+
+        var found = _store.SearchClients(_code.Text);
+        _matches.BeginUpdate();
+        _matches.Items.Clear();
+        foreach (var client in found)
+            _matches.Items.Add(new ClientLine(client));
+        _matches.EndUpdate();
+    }
+
+    private async Task SearchRemoteAsync()
+    {
         var text = _code.Text.Trim();
-        if (text.Length == 0)
+        if (text.Length == 0 || _session is not null || _searchMute)
+            return;
+        var settings = _store.GetSettings();
+        if (!settings.IsConfigured)
+            return;
+        try
         {
-            MessageBox.Show(this, UiText.NeedCode, UiText.TitleCode, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            var found = await _remote.SearchClientsAsync(settings, text);
+            if (IsDisposed || _code.Text.Trim() != text)
+                return;
+            _store.SaveClients(found);
+            RefreshMatches();
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async Task TakeMatchAsync()
+    {
+        _searchTimer.Stop();
+        await SearchRemoteAsync();
+        if (_matches.Items.Count == 1 && _matches.Items[0] is ClientLine only)
+        {
+            ChooseClient(only.Client);
             return;
         }
 
-        if (!uint.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var kod) || kod == 0)
+        if (_matches.SelectedItem is ClientLine line)
         {
-            MessageBox.Show(this, UiText.ZeroForbidden, UiText.TitleCode, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            ChooseClient(line.Client);
             return;
         }
 
-        if (_session is not null && _session.Kod != kod)
+        if (_matches.Items.Count == 0)
+        {
+            MessageBox.Show(this, UiText.ClientNotFound, UiText.TitleCode, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _matches.Focus();
+        if (_matches.SelectedIndex < 0)
+            _matches.SelectedIndex = 0;
+        SetStatus(UiText.PickClient, Theme.Muted);
+    }
+
+    private void ChooseClient(ClientInfo client)
+    {
+        if (_session is not null && _session.Kod != client.Kod)
         {
             MessageBox.Show(this, UiText.CloseSessionFirst(_session.Kod), UiText.TitleSession, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
-        var settings = _store.GetSettings();
-        if (!settings.IsConfigured)
+        _client = client;
+        _codeConfirmed = true;
+        _searchMute = true;
+        _code.Text = client.FullName;
+        _searchMute = false;
+        _matches.Items.Clear();
+        if (_session is null)
         {
-            MessageBox.Show(this, UiText.DbNotReady, UiText.TitleDb, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            _grid.Rows.Clear();
+            ResetCopies();
+        }
+
+        ShowOfflineNote(false);
+        ShowClient(client, UiText.CodeOk);
+        _storePhone.Focus();
+        GateFields();
+    }
+
+    private async Task AddClientAsync()
+    {
+        if (_busy)
+            return;
+        if (_session is not null)
+        {
+            MessageBox.Show(this, UiText.CloseSessionFirst(_session.Kod), UiText.TitleSession, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
+        var typed = _code.Text.Trim();
+        var digits = new string(typed.Where(char.IsDigit).ToArray());
+        var asPhone = digits.Length >= 3 && digits.Length >= typed.Count(char.IsLetter);
+        using var form = new ClientForm(asPhone ? "" : typed, asPhone ? typed : "");
+        if (form.ShowDialog(this) != DialogResult.OK || form.Client is null)
+            return;
+
+        var settings = _store.GetSettings();
         _busy = true;
         UseWaitCursor = true;
-        _clientState.ForeColor = Theme.Muted;
-        _clientState.Text = UiText.CheckingCode;
         try
         {
-            var client = await _remote.FindClientAsync(settings, kod);
-            if (client is null)
+            ClientInfo saved;
+            var offline = false;
+            if (!settings.IsConfigured)
             {
-                if (_session is null)
-                {
-                    _client = null;
-                    ShowClient(null, UiText.CodeMissing);
-                    _clientState.ForeColor = Theme.Danger;
-                }
-                else
-                {
-                    _clientState.ForeColor = Theme.Danger;
-                    _clientState.Text = UiText.CodeMissing;
-                }
-
-                MessageBox.Show(this, UiText.CodeMissingBag, UiText.TitleCode, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, UiText.DbNotReady, UiText.TitleDb, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            _client = client;
-            _codeConfirmed = true;
-            if (_session is null)
+            try
             {
-                _grid.Rows.Clear();
-                ResetCopies();
+                saved = await _remote.InsertClientAsync(settings, form.Client, 0);
+                _store.SaveClient(saved, false);
+            }
+            catch (Exception ex) when (RemoteDb.IsLinkDown(ex))
+            {
+                if (_store.ClientCount() == 0)
+                {
+                    MessageBox.Show(this, UiText.ClientsNotLoaded, UiText.TitleDb, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var kod = _store.NextClientCode();
+                saved = new ClientInfo
+                {
+                    Kod = kod,
+                    Name = form.Client.Name,
+                    Surname = form.Client.Surname,
+                    Phone = form.Client.Phone,
+                    Phone2 = form.Client.Phone2,
+                    Notes = form.Client.Notes,
+                };
+                _store.SaveClient(saved, true);
+                offline = true;
             }
 
-            ShowOfflineNote(false);
-            ShowClient(client, UiText.CodeOk);
-            _storePhone.Focus();
-            GateFields();
+            ChooseClient(saved);
+            MessageBox.Show(this, offline ? UiText.ClientSavedOffline(saved.Kod) : UiText.ClientSaved(saved.Kod), UiText.AddClientTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _sync.Kick();
         }
         catch (Exception ex)
         {
-            if (RemoteDb.IsLinkDown(ex))
-            {
-                BeginOffline(kod);
-                return;
-            }
-
-            if (_session is null)
-                _client = null;
-            _clientState.ForeColor = Theme.Danger;
-            _clientState.Text = UiText.ServerRejected;
-            MessageBox.Show(this, UiText.CodeNotConfirmed + RemoteDb.Human(ex), UiText.TitleDb, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, RemoteDb.Human(ex), UiText.TitleDb, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         finally
         {
             _busy = false;
             UseWaitCursor = false;
         }
+    }
+
+    private void SetSearchLocked(bool locked)
+    {
+        _code.Enabled = !locked;
+        _addClient.Enabled = !locked;
+        _matches.Enabled = !locked;
+        if (locked)
+            _matches.Items.Clear();
     }
 
     private void AcceptBag()
@@ -1082,6 +1207,7 @@ internal sealed class MainForm : FullScreenForm
                 SetStatus("", Theme.Muted);
                 FlashKilo();
             }
+            SetSearchLocked(true);
             _sync.Kick();
         }
         catch (Exception ex)
@@ -1140,6 +1266,8 @@ internal sealed class MainForm : FullScreenForm
         ShowClient(null, UiText.EnterCode);
         UpdateCount();
         ShowOfflineNote(WorkingOffline());
+        SetSearchLocked(false);
+        _code.Clear();
     }
 
     private void Finish()
@@ -1500,8 +1628,9 @@ internal sealed class MainForm : FullScreenForm
         }
         else
         {
-            _clientName.Text = client.FullName;
-            _clientPhone.Text = string.IsNullOrWhiteSpace(client.Phone) ? UiText.PhoneEmpty : UiText.PhonePrefix + client.Phone;
+            _clientName.Text = client.Kod + "  " + client.FullName;
+            var phones = string.Join("   ", new[] { client.Phone, client.Phone2 }.Where(text => !string.IsNullOrWhiteSpace(text)));
+            _clientPhone.Text = phones.Length == 0 ? UiText.PhoneEmpty : UiText.PhonePrefix + phones;
         }
 
         _clientState.ForeColor = client is null ? Theme.Muted : Theme.Ok;

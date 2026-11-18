@@ -170,6 +170,22 @@ internal sealed class LocalStore
                 counters.ExecuteNonQuery();
             }
 
+            using (var clients = connection.CreateCommand())
+            {
+                clients.CommandText = """
+                    CREATE TABLE IF NOT EXISTS clients (
+                        kod INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        surname TEXT NOT NULL DEFAULT '',
+                        phone TEXT NOT NULL DEFAULT '',
+                        phone2 TEXT NOT NULL DEFAULT '',
+                        notes TEXT NOT NULL DEFAULT '',
+                        pending INTEGER NOT NULL DEFAULT 0
+                    );
+                    """;
+                clients.ExecuteNonQuery();
+            }
+
             using var count = connection.CreateCommand();
             count.CommandText = "SELECT COUNT(*) FROM operators";
             var operators = Convert.ToInt32(count.ExecuteScalar(), CultureInfo.InvariantCulture);
@@ -955,6 +971,244 @@ internal sealed class LocalStore
             command.ExecuteNonQuery();
         }
     }
+
+    public int ClientCount()
+    {
+        lock (_gate)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM clients";
+            return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+        }
+    }
+
+    public bool IsClientPending(uint kod)
+    {
+        lock (_gate)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT pending FROM clients WHERE kod = $kod";
+            command.Parameters.AddWithValue("$kod", kod);
+            return command.ExecuteScalar() is long pending && pending != 0;
+        }
+    }
+
+    public uint NextClientCode()
+    {
+        lock (_gate)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT IFNULL(MAX(kod), 0) + 1 FROM clients";
+            return Convert.ToUInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+        }
+    }
+
+    public ClientInfo? FindCachedClient(uint kod)
+    {
+        lock (_gate)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT kod, name, surname, phone, phone2, notes FROM clients WHERE kod = $kod";
+            command.Parameters.AddWithValue("$kod", kod);
+            using var reader = command.ExecuteReader();
+            return reader.Read() ? ReadClient(reader) : null;
+        }
+    }
+
+    public List<ClientInfo> SearchClients(string query, int limit = 12)
+    {
+        var text = query.Trim();
+        if (text.Length == 0)
+            return [];
+        var digits = new string(text.Where(char.IsDigit).ToArray());
+        var like = "%" + text.Replace("%", "").Replace("_", "") + "%";
+        lock (_gate)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT kod, name, surname, phone, phone2, notes
+                FROM clients
+                WHERE name LIKE $like OR surname LIKE $like OR CAST(kod AS TEXT) = $text
+                   OR ($useDigits = 1 AND (
+                        REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE $digits
+                        OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone2, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE $digits
+                        OR CAST(kod AS TEXT) LIKE $digits))
+                LIMIT 40
+                """;
+            command.Parameters.AddWithValue("$like", like);
+            command.Parameters.AddWithValue("$text", text);
+            command.Parameters.AddWithValue("$useDigits", digits.Length >= 3 || (digits.Length > 0 && digits == text) ? 1 : 0);
+            command.Parameters.AddWithValue("$digits", "%" + digits + "%");
+            using var reader = command.ExecuteReader();
+            var list = new List<ClientInfo>();
+            while (reader.Read())
+                list.Add(ReadClient(reader));
+            return list
+                .OrderBy(client => ClientRank(client, text, digits))
+                .ThenBy(client => client.Name, StringComparer.CurrentCulture)
+                .Take(limit)
+                .ToList();
+        }
+    }
+
+    public List<ClientInfo> PendingClients()
+    {
+        lock (_gate)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT kod, name, surname, phone, phone2, notes FROM clients WHERE pending = 1 ORDER BY kod";
+            using var reader = command.ExecuteReader();
+            var list = new List<ClientInfo>();
+            while (reader.Read())
+                list.Add(ReadClient(reader));
+            return list;
+        }
+    }
+
+    public void SaveClient(ClientInfo client, bool pending)
+    {
+        lock (_gate)
+        {
+            using var connection = Open();
+            WriteClient(connection, null, client, pending, keepPending: false);
+        }
+    }
+
+    public void SaveClients(IReadOnlyList<ClientInfo> clients)
+    {
+        lock (_gate)
+        {
+            using var connection = Open();
+            using var transaction = connection.BeginTransaction();
+            foreach (var client in clients)
+                WriteClient(connection, transaction, client, pending: false, keepPending: true);
+            transaction.Commit();
+        }
+    }
+
+    public void RetargetClient(uint oldKod, ClientInfo saved)
+    {
+        lock (_gate)
+        {
+            using var connection = Open();
+            using var transaction = connection.BeginTransaction();
+            using (var clients = connection.CreateCommand())
+            {
+                clients.Transaction = transaction;
+                clients.CommandText = """
+                    UPDATE clients
+                    SET kod = $kod, name = $name, surname = $surname, phone = $phone, phone2 = $phone2, notes = $notes, pending = 0
+                    WHERE kod = $old
+                    """;
+                BindClient(clients, saved);
+                clients.Parameters.AddWithValue("$old", oldKod);
+                clients.ExecuteNonQuery();
+            }
+
+            using (var sessions = connection.CreateCommand())
+            {
+                sessions.Transaction = transaction;
+                sessions.CommandText = """
+                    UPDATE sessions
+                    SET kod = $kod, client_name = $name, client_surname = $surname, client_phone = $phone
+                    WHERE kod = $old
+                    """;
+                sessions.Parameters.AddWithValue("$kod", saved.Kod);
+                sessions.Parameters.AddWithValue("$name", saved.Name);
+                sessions.Parameters.AddWithValue("$surname", saved.Surname);
+                sessions.Parameters.AddWithValue("$phone", saved.Phone);
+                sessions.Parameters.AddWithValue("$old", oldKod);
+                sessions.ExecuteNonQuery();
+            }
+
+            using (var bags = connection.CreateCommand())
+            {
+                bags.Transaction = transaction;
+                bags.CommandText = "UPDATE bags SET kod = $kod WHERE kod = $old AND synced = 0";
+                bags.Parameters.AddWithValue("$kod", saved.Kod);
+                bags.Parameters.AddWithValue("$old", oldKod);
+                bags.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        }
+    }
+
+    private static void WriteClient(SqliteConnection connection, SqliteTransaction? transaction, ClientInfo client, bool pending, bool keepPending)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = keepPending
+            ? """
+              INSERT INTO clients (kod, name, surname, phone, phone2, notes, pending)
+              VALUES ($kod, $name, $surname, $phone, $phone2, $notes, $pending)
+              ON CONFLICT(kod) DO UPDATE SET
+                  name = excluded.name,
+                  surname = excluded.surname,
+                  phone = excluded.phone,
+                  phone2 = excluded.phone2,
+                  notes = excluded.notes,
+                  pending = 0
+              WHERE clients.pending = 0
+              """
+            : """
+              INSERT INTO clients (kod, name, surname, phone, phone2, notes, pending)
+              VALUES ($kod, $name, $surname, $phone, $phone2, $notes, $pending)
+              ON CONFLICT(kod) DO UPDATE SET
+                  name = excluded.name,
+                  surname = excluded.surname,
+                  phone = excluded.phone,
+                  phone2 = excluded.phone2,
+                  notes = excluded.notes,
+                  pending = excluded.pending
+              """;
+        BindClient(command, client);
+        command.Parameters.AddWithValue("$pending", pending ? 1 : 0);
+        command.ExecuteNonQuery();
+    }
+
+    private static void BindClient(SqliteCommand command, ClientInfo client)
+    {
+        command.Parameters.AddWithValue("$kod", client.Kod);
+        command.Parameters.AddWithValue("$name", client.Name.Trim());
+        command.Parameters.AddWithValue("$surname", client.Surname.Trim());
+        command.Parameters.AddWithValue("$phone", client.Phone.Trim());
+        command.Parameters.AddWithValue("$phone2", client.Phone2.Trim());
+        command.Parameters.AddWithValue("$notes", client.Notes.Trim());
+    }
+
+    private static ClientInfo ReadClient(SqliteDataReader reader) => new()
+    {
+        Kod = Convert.ToUInt32(reader.GetInt64(0), CultureInfo.InvariantCulture),
+        Name = reader.GetString(1),
+        Surname = reader.GetString(2),
+        Phone = reader.GetString(3),
+        Phone2 = reader.GetString(4),
+        Notes = reader.GetString(5),
+    };
+
+    private static int ClientRank(ClientInfo client, string text, string digits)
+    {
+        if (digits.Length > 0 && client.Kod.ToString(CultureInfo.InvariantCulture) == digits)
+            return 0;
+        if (digits.Length >= 3 && Digits(client.Phone).EndsWith(digits, StringComparison.Ordinal))
+            return 1;
+        if (digits.Length >= 3 && Digits(client.Phone2).EndsWith(digits, StringComparison.Ordinal))
+            return 1;
+        if (client.Name.StartsWith(text, StringComparison.CurrentCultureIgnoreCase) || client.Surname.StartsWith(text, StringComparison.CurrentCultureIgnoreCase))
+            return 2;
+        if (digits.Length >= 3 && (Digits(client.Phone).Contains(digits, StringComparison.Ordinal) || Digits(client.Phone2).Contains(digits, StringComparison.Ordinal)))
+            return 3;
+        return 4;
+    }
+
+    private static string Digits(string text) => new(text.Where(char.IsDigit).ToArray());
 
     public void RememberClient(ClientInfo client)
     {

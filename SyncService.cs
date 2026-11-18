@@ -16,6 +16,7 @@ internal sealed class SyncService : IDisposable
     private long _bytesBefore;
     private DateOnly _archivedOn;
     private int _aligned;
+    private DateTime _clientsPulled;
 
     public string OperatorName { get; set; } = "";
 
@@ -89,6 +90,8 @@ internal sealed class SyncService : IDisposable
             try
             {
                 await _remote.EnsureSchemaAsync(settings);
+                await PushClientsAsync(settings);
+                await PullClientsAsync(settings);
                 var missing = new List<uint>();
                 var looked = new Dictionary<uint, ClientInfo?>();
                 string? rejected = null;
@@ -101,6 +104,11 @@ internal sealed class SyncService : IDisposable
                         if (string.IsNullOrWhiteSpace(bag.KodId) || bag.KodId == "0" || bag.Kod == 0)
                         {
                             _store.MarkError(bag.LocalId, UiText.ZeroForbidden);
+                            continue;
+                        }
+                        if (_store.IsClientPending(bag.Kod))
+                        {
+                            _store.MarkError(bag.LocalId, UiText.ClientWaiting);
                             continue;
                         }
                         if (!looked.TryGetValue(bag.Kod, out var client))
@@ -205,6 +213,27 @@ internal sealed class SyncService : IDisposable
         {
             Interlocked.Exchange(ref _running, 0);
         }
+    }
+
+    private async Task PushClientsAsync(AppSettings settings)
+    {
+        foreach (var client in _store.PendingClients())
+        {
+            var saved = await _remote.InsertClientAsync(settings, client, client.Kod);
+            if (saved.Kod != client.Kod)
+                _store.RetargetClient(client.Kod, saved);
+            else
+                _store.SaveClient(saved, false);
+        }
+    }
+
+    private async Task PullClientsAsync(AppSettings settings)
+    {
+        if (_store.ClientCount() > 0 && DateTime.UtcNow - _clientsPulled < TimeSpan.FromSeconds(45))
+            return;
+        var clients = await _remote.ListClientsAsync(settings);
+        _store.SaveClients(clients);
+        _clientsPulled = DateTime.UtcNow;
     }
 
     private SyncState State(bool online, string? error, IReadOnlyList<uint>? missing = null, string? rejected = null) => new(

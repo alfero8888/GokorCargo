@@ -43,8 +43,10 @@ internal sealed class RemoteDb
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         var clients = ClientTable(settings);
+        if (_schemaKey != Key(settings))
+            await EnsureSchemaAsync(settings, cancellationToken);
         command.CommandText = $"""
-            SELECT IFNULL(gn, ''), IFNULL(gt, '')
+            SELECT IFNULL(gn, ''), IFNULL(gfam, ''), IFNULL(gt, ''), IFNULL(gt2, ''), IFNULL(gnote, '')
             FROM `{clients}`
             WHERE gk = @id OR gk = @text
             LIMIT 1
@@ -55,14 +57,135 @@ internal sealed class RemoteDb
         if (!await reader.ReadAsync(cancellationToken))
             return null;
 
+        return ReadClient(kod, reader);
+    }
+
+    public async Task<List<ClientInfo>> SearchClientsAsync(AppSettings settings, string query, CancellationToken cancellationToken = default)
+    {
+        var text = query.Trim();
+        if (text.Length == 0)
+            return [];
+        var digits = new string(text.Where(char.IsDigit).ToArray());
+        await using var connection = Create(settings);
+        await connection.OpenAsync(cancellationToken);
+        if (_schemaKey != Key(settings))
+            await EnsureSchemaAsync(connection, settings, cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT gk, IFNULL(gn, ''), IFNULL(gfam, ''), IFNULL(gt, ''), IFNULL(gt2, ''), IFNULL(gnote, '')
+            FROM `{ClientTable(settings)}`
+            WHERE gn LIKE @like OR IFNULL(gfam, '') LIKE @like OR gk = @text
+               OR (@useDigits = 1 AND (
+                    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(IFNULL(gt, ''), ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE @digits
+                    OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(IFNULL(gt2, ''), ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE @digits
+                    OR gk LIKE @digits))
+            LIMIT 40
+            """;
+        command.Parameters.Add("@like", MySqlDbType.VarChar).Value = "%" + text.Replace("%", "").Replace("_", "") + "%";
+        command.Parameters.Add("@text", MySqlDbType.VarChar).Value = text;
+        command.Parameters.Add("@useDigits", MySqlDbType.Int32).Value = digits.Length >= 3 || (digits.Length > 0 && digits == text) ? 1 : 0;
+        command.Parameters.Add("@digits", MySqlDbType.VarChar).Value = "%" + digits + "%";
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var list = new List<ClientInfo>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (uint.TryParse(Cell(reader, 0), NumberStyles.None, CultureInfo.InvariantCulture, out var kod) && kod > 0)
+                list.Add(ReadClient(kod, reader, 1));
+        }
+
+        return list;
+    }
+
+    public async Task<List<ClientInfo>> ListClientsAsync(AppSettings settings, CancellationToken cancellationToken = default)
+    {
+        await using var connection = Create(settings);
+        await connection.OpenAsync(cancellationToken);
+        if (_schemaKey != Key(settings))
+            await EnsureSchemaAsync(connection, settings, cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandTimeout = 60;
+        command.CommandText = $"""
+            SELECT gk, IFNULL(gn, ''), IFNULL(gfam, ''), IFNULL(gt, ''), IFNULL(gt2, ''), IFNULL(gnote, '')
+            FROM `{ClientTable(settings)}`
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var list = new List<ClientInfo>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (uint.TryParse(Cell(reader, 0), NumberStyles.None, CultureInfo.InvariantCulture, out var kod) && kod > 0)
+                list.Add(ReadClient(kod, reader, 1));
+        }
+
+        return list;
+    }
+
+    public async Task<ClientInfo> InsertClientAsync(AppSettings settings, ClientInfo client, uint preferred, CancellationToken cancellationToken = default)
+    {
+        await using var connection = Create(settings);
+        await connection.OpenAsync(cancellationToken);
+        if (_schemaKey != Key(settings))
+            await EnsureSchemaAsync(connection, settings, cancellationToken);
+        var table = ClientTable(settings);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        uint kod;
+        await using (var max = connection.CreateCommand())
+        {
+            max.Transaction = transaction;
+            max.CommandText = $"SELECT IFNULL(MAX(CAST(gk AS UNSIGNED)), 0) FROM `{table}`";
+            var next = Convert.ToUInt32(await max.ExecuteScalarAsync(cancellationToken) ?? 0, CultureInfo.InvariantCulture) + 1;
+            kod = next;
+            if (preferred > 0)
+            {
+                await using var taken = connection.CreateCommand();
+                taken.Transaction = transaction;
+                taken.CommandText = $"SELECT 1 FROM `{table}` WHERE gk = @id OR gk = @text LIMIT 1";
+                taken.Parameters.Add("@id", MySqlDbType.UInt32).Value = preferred;
+                taken.Parameters.Add("@text", MySqlDbType.VarChar).Value = preferred.ToString(CultureInfo.InvariantCulture);
+                if (await taken.ExecuteScalarAsync(cancellationToken) is null)
+                    kod = preferred;
+            }
+        }
+
+        await using (var insert = connection.CreateCommand())
+        {
+            insert.Transaction = transaction;
+            insert.CommandText = $"""
+                INSERT INTO `{table}` (gk, gn, gfam, gt, gt2, gnote)
+                VALUES (@kod, @name, @surname, @phone, @phone2, @notes)
+                """;
+            insert.Parameters.Add("@kod", MySqlDbType.VarChar).Value = kod.ToString(CultureInfo.InvariantCulture);
+            insert.Parameters.Add("@name", MySqlDbType.VarChar).Value = Clip(client.Name, 80);
+            insert.Parameters.Add("@surname", MySqlDbType.VarChar).Value = Clip(client.Surname, 80);
+            insert.Parameters.Add("@phone", MySqlDbType.VarChar).Value = Clip(client.Phone, 40);
+            insert.Parameters.Add("@phone2", MySqlDbType.VarChar).Value = Clip(client.Phone2, 40);
+            insert.Parameters.Add("@notes", MySqlDbType.VarChar).Value = Clip(client.Notes, 500);
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
         return new ClientInfo
         {
             Kod = kod,
-            Name = reader.GetString(0).Trim(),
-            Surname = "",
-            Phone = reader.GetString(1).Trim(),
+            Name = Clip(client.Name, 80),
+            Surname = Clip(client.Surname, 80),
+            Phone = Clip(client.Phone, 40),
+            Phone2 = Clip(client.Phone2, 40),
+            Notes = Clip(client.Notes, 500),
         };
     }
+
+    private static ClientInfo ReadClient(uint kod, MySqlDataReader reader, int offset = 0) => new()
+    {
+        Kod = kod,
+        Name = Cell(reader, offset).Trim(),
+        Surname = Cell(reader, offset + 1).Trim(),
+        Phone = Cell(reader, offset + 2).Trim(),
+        Phone2 = Cell(reader, offset + 3).Trim(),
+        Notes = Cell(reader, offset + 4).Trim(),
+    };
+
+    private static string Cell(MySqlDataReader reader, int index) =>
+        reader.IsDBNull(index) ? "" : Convert.ToString(reader.GetValue(index), CultureInfo.InvariantCulture) ?? "";
 
     public async Task DeleteBagAsync(AppSettings settings, string kodId, string trackCode, CancellationToken cancellationToken = default)
     {
@@ -382,6 +505,23 @@ internal sealed class RemoteDb
             await using var client = connection.CreateCommand();
             client.CommandText = $"SELECT gk, gn, gt FROM `{ClientTable(settings)}` LIMIT 0";
             await client.ExecuteNonQueryAsync(cancellationToken);
+            foreach (var extra in new[]
+            {
+                "gfam VARCHAR(80) NULL",
+                "gt2 VARCHAR(40) NULL",
+                "gnote VARCHAR(500) NULL",
+            })
+            {
+                try
+                {
+                    await using var alter = connection.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE `{ClientTable(settings)}` ADD COLUMN {extra}";
+                    await alter.ExecuteNonQueryAsync(cancellationToken);
+                }
+                catch (MySqlException ex) when (ex.ErrorCode == MySqlErrorCode.DuplicateFieldName || ex.Message.Contains("Duplicate column", StringComparison.OrdinalIgnoreCase))
+                {
+                }
+            }
         }
         catch (MySqlException ex) when (ex.ErrorCode == MySqlErrorCode.NoSuchTable)
         {
@@ -391,6 +531,7 @@ internal sealed class RemoteDb
         if (!ready)
             throw new InvalidOperationException(UiText.TableMissing(table));
 
+        _schemaKey = Key(settings);
         return new SchemaStatus(true, false, false, clientExists);
     }
 

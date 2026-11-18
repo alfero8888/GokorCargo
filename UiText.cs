@@ -49,6 +49,27 @@ internal static class UiText
     public static string BackMenu => Tr ? "Menüye dön" : "Ընտրացանկ";
     public static string ClientSection => Tr ? "Müşteri" : "Հաճախորդ";
     public static string ClientCode => Tr ? "Müşteri kodu" : "Հաճախորդի կոդ";
+    public static string FindClient => Tr ? "Ad veya telefon" : "Անուն կամ հեռախոս";
+    public static string AddClient => Tr ? "Müşteri ekle" : "Ավելացնել";
+    public static string AddClientTitle => Tr ? "Yeni müşteri" : "Նոր հաճախորդ";
+    public static string ClientName => Tr ? "Ad" : "Անուն";
+    public static string ClientSurname => Tr ? "Soyad" : "Ազգանուն";
+    public static string ClientPhone => Tr ? "Telefon" : "Հեռախոս";
+    public static string ClientPhone2 => Tr ? "İkinci telefon" : "Երկրորդ հեռախոս";
+    public static string ClientNotes => Tr ? "Not" : "Նշումներ";
+    public static string SaveClient => Tr ? "Kaydet" : "Պահել";
+    public static string NeedClientName => Tr ? "Ad zorunlu." : "Անունը պարտադիր է։";
+    public static string NeedClientPhone => Tr ? "İlk telefon zorunlu." : "Առաջին հեռախոսը պարտադիր է։";
+    public static string ClientNotFound => Tr ? "Böyle müşteri yok. Yeni müşteri ekleyin." : "Այսպիսի հաճախորդ չկա։ Ավելացրեք նոր հաճախորդ։";
+    public static string PickClient => Tr ? "Listeden müşteriyi seçin." : "Ընտրեք հաճախորդին ցանկից։";
+    public static string ClientSaved(uint kod) => Tr ? $"Müşteri kaydedildi. Kod: {kod}." : $"Հաճախորդը պահվեց։ Կոդ՝ {kod}։";
+    public static string ClientSavedOffline(uint kod) => Tr
+        ? $"Müşteri programda duruyor. Kod: {kod}. Bağlantı gelince sunucuya gider."
+        : $"Հաճախորդը պահվեց ծրագրում։ Կոդ՝ {kod}։ Կապ լինի՝ կգնա սերվեր։";
+    public static string ClientsNotLoaded => Tr
+        ? "Müşteri listesi henüz inmedi. Bir kez internet gerekir."
+        : "Հաճախորդների ցանկը դեռ չի ներբեռնվել։ Մեկ անգամ կապ է պետք։";
+    public static string ClientWaiting => Tr ? "Müşteri henüz sunucuya gitmedi." : "Հաճախորդը դեռ սերվեր չի գնացել։";
     public static string StoreSection => Tr ? "Mağaza ve çuval" : "Խանութ և պարկ";
     public static string StorePhone => Tr ? "Mağaza telefonu" : "Խանութի հեռախոս";
     public static string StoreName => Tr ? "Mağaza adı" : "Խանութի անուն";
@@ -59,7 +80,7 @@ internal static class UiText
     public static string PhonePrefix => Tr ? "Telefon: " : "Հեռախոս՝ ";
     public static string PhoneEmpty => Tr ? "Telefon: —" : "Հեռախոս՝ —";
     public static string CodeUnchecked => Tr ? "Kod henüz kontrol edilmedi" : "Կոդը դեռ չի ստուգվել";
-    public static string EnterCode => Tr ? "Müşteri kodunu yazın." : "Գրեք հաճախորդի կոդը։";
+    public static string EnterCode => Tr ? "Ad veya telefonun son rakamlarını yazın." : "Գրեք անունը կամ հեռախոսի վերջին թվերը։";
     public static string CodeMissing => Tr ? "Bu kod veritabanında yok." : "Այսպիսի կոդ բազայում չկա։";
     public static string CodeMissingBag => Tr ? "Bu kod veritabanında yok. Çuval kabul edilmez." : "Այսպիսի կոդ բազայում չկա։ Պարկ չենք ընդունում։";
     public static string CodeOk => Tr ? "Kod var. Çuval kabul edilebilir." : "Կոդը բազայում կա։ Կարելի է պարկ ընդունել։";
@@ -75,7 +96,7 @@ internal static class UiText
         ? "Veritabanı bağlantısı ayarlanmadı. Bunu ana yönetici yapar."
         : "Բազայի կապը դեռ կարգավորված չէ։ Դա անում է գլխավոր ադմինիստրատորը։";
     public static string CodeNotConfirmed => Tr ? "Kod doğrulanmadı. Kabul başlamadı.\n" : "Կոդը հաստատված չէ։ Ընդունումը չի սկսվել։\n";
-    public static string NeedClientFirst => Tr ? "Önce kodu yazın ve sunucu yanıtını bekleyin." : "Նախ գրեք կոդը և սպասեք սերվերի պատասխանին։";
+    public static string NeedClientFirst => Tr ? "Önce müşteriyi seçin." : "Նախ ընտրեք հաճախորդին։";
     public static string LabelFailed(string kodId, string message) => Tr
         ? $"Çuval {kodId} etiketi yazdırılamadı. {message}"
         : $"Պարկի {kodId} պիտակը չտպվեց։ {message}";
@@ -482,8 +503,8 @@ internal static class UiText
     public static string InvoiceNoLabel => Tr ? "Fatura no" : "Ֆակտուրայի համար";
     public static string InvoiceDateFull => Tr ? "Fatura kesim tarihi" : "Ֆակտուրայի դուրսգրման ամսաթիվ";
     public static string AddGoodsTip => Tr ? "Mal satırı ekle" : "Ավելացնել ապրանք";
-    public static string TipClientCode => Tr ? "Müşteri kodu. Yazıp Enter'a basın." : "Հաճախորդի կոդ։ Գրեք և սեղմեք Enter։";
-    public static string TipCheckCode => Tr ? "Kodu kontrol eder. Çoğu zaman Enter yeter." : "Ստուգել կոդը։ Սովորաբար բավական է Enter-ը։";
+    public static string TipClientCode => Tr ? "Ad, telefon veya son rakamlar. Enter seçer." : "Անուն, հեռախոս կամ վերջին թվերը։ Enter-ը ընտրում է։";
+    public static string TipCheckCode => Tr ? "Listede yoksa yeni müşteri ekler." : "Եթե ցանկում չկա, ավելացնում է նոր հաճախորդ։";
     public static string TipStorePhone => Tr ? "Mağazanın telefonu." : "Խանութի հեռախոսը։";
     public static string TipStoreName => Tr ? "Mağazanın adı." : "Խանութի անուն.";
     public static string TipType => Tr ? "Gönderinin türü." : "Ուղարկման տեսակը։";
