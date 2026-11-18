@@ -640,6 +640,7 @@ internal sealed class MainForm : FullScreenForm
         AddColumn("track", "Трекинг", 140);
         AddColumn("kilo", "Кг", 60);
         AddColumn("type", "Тип", 80);
+        _grid.Columns["type"]!.Visible = false;
         AddColumn("mal", UiText.MalColumn, 160);
         AddColumn("iqty", "Miktar", 70);
         AddColumn("iunit", "Birim", 80);
@@ -833,19 +834,10 @@ internal sealed class MainForm : FullScreenForm
                 return;
             }
 
-            if (_type.Enabled)
-            {
-                _type.Focus();
-                BeginInvoke(() =>
-                {
-                    if (_type.Enabled)
-                        _type.DroppedDown = true;
-                });
-            }
+            if (_contents.Visible)
+                _contents.FocusFirst();
             else
-            {
                 _kilo.Focus();
-            }
         };
         _insurance.KeyDown += (_, e) =>
         {
@@ -1125,14 +1117,7 @@ internal sealed class MainForm : FullScreenForm
             return;
         }
 
-        var bolum = "2";
-
-        if (!PhoneEnough(bolum))
-        {
-            MessageBox.Show(this, UiText.NeedPhoneSeven, UiText.TitleStore, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            _storePhone.Focus();
-            return;
-        }
+        var bolum = "";
 
         if (!CargoRules.TryStore(_storePhone.Text, _storeName.Text, out var teslim, out var storeError))
         {
@@ -1279,12 +1264,6 @@ internal sealed class MainForm : FullScreenForm
         }
 
         var bags = _store.GetBags(_session.Id);
-        if (bags.Any(bag => bag.Bolum != "4" && _session.StorePhone.Count(char.IsDigit) < 7))
-        {
-            MessageBox.Show(this, UiText.NeedPhoneSeven, UiText.TitleStore, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            _storePhone.Focus();
-            return;
-        }
         foreach (var bag in bags)
             bag.Items = _store.GetItems(bag.LocalId);
         try
@@ -1700,7 +1679,6 @@ internal sealed class MainForm : FullScreenForm
             UiText.InvoiceDateLabel,
             UiText.ColTrack,
             UiText.ColTime,
-            UiText.ColType,
         ], rows);
         SetStatus(UiText.ExportContentsDone, Theme.Ok);
     }
@@ -2184,12 +2162,11 @@ internal sealed class MainForm : FullScreenForm
         _browseFile = $"meshki-{first.Kod}.xlsx";
         ShowBrowse(
             UiText.VisitHead(first.Kod, visit.Length, first.TrackCode),
-            [UiText.ColBag, UiText.ColKilo, UiText.ColType, UiText.ColInsurance, UiText.ColStore, UiText.ColTime],
+            [UiText.ColBag, UiText.ColKilo, UiText.ColInsurance, UiText.ColStore, UiText.ColTime],
             visit.Select(bag => new[]
             {
                 bag.KodId,
                 bag.Kilo,
-                BolumChoice.TitleOf(bag.Bolum),
                 bag.Sigorta.ToString(CultureInfo.InvariantCulture),
                 bag.TeslimEden,
                 bag.Tarih.ToString("HH:mm"),
@@ -2204,13 +2181,12 @@ internal sealed class MainForm : FullScreenForm
         var bags = _store.UnsyncedBags();
         ShowBrowse(
             UiText.UnsyncedTitle(bags.Count),
-            [UiText.ColBag, UiText.ColCode, UiText.ColKilo, UiText.ColType, UiText.ColStore, UiText.ColTrack, UiText.ColTime, UiText.ColError],
+            [UiText.ColBag, UiText.ColCode, UiText.ColKilo, UiText.ColStore, UiText.ColTrack, UiText.ColTime, UiText.ColError],
             bags.Select(bag => new[]
             {
                 bag.KodId,
                 bag.Kod.ToString(CultureInfo.InvariantCulture),
                 bag.Kilo,
-                BolumChoice.TitleOf(bag.Bolum),
                 bag.TeslimEden,
                 bag.TrackCode,
                 bag.Tarih.ToString("dd.MM.yyyy HH:mm"),
@@ -2416,7 +2392,6 @@ internal sealed class MainForm : FullScreenForm
         UiText.ColBag,
         UiText.ColCode,
         UiText.ColKilo,
-        UiText.ColType,
         UiText.ColStore,
         UiText.ColTrack,
         UiText.ColInsurance,
@@ -2432,7 +2407,6 @@ internal sealed class MainForm : FullScreenForm
         bag.KodId.ToString(CultureInfo.InvariantCulture),
         bag.Kod.ToString(CultureInfo.InvariantCulture),
         bag.Kilo,
-        BolumChoice.TitleOf(bag.Bolum),
         bag.StoreName,
         bag.TrackCode,
         bag.Sigorta.ToString(CultureInfo.InvariantCulture),
@@ -2464,7 +2438,6 @@ internal sealed class MainForm : FullScreenForm
                     item.Unit,
                     bag.TrackCode,
                     bag.Tarih.ToString("dd.MM.yyyy HH:mm"),
-                    BolumChoice.TitleOf(bag.Bolum),
                     bag.Kod.ToString(CultureInfo.InvariantCulture),
                 ]);
             }
@@ -2480,7 +2453,6 @@ internal sealed class MainForm : FullScreenForm
                 "Միավոր",
                 UiText.ColTrack,
                 UiText.ColTime,
-                UiText.ColType,
                 UiText.ColCode,
             ],
             rows);
@@ -2629,16 +2601,6 @@ internal sealed class MainForm : FullScreenForm
             UiText.TodayUninsured(plain),
             "",
         };
-
-        var groups = bags.GroupBy(bag => bag.Bolum).ToDictionary(group => group.Key, group => group.ToArray());
-        foreach (var choice in BolumChoice.All)
-        {
-            if (groups.Remove(choice.Code, out var rows))
-                lines.Add(CategoryLine(choice.ToString(), rows));
-        }
-
-        foreach (var extra in groups.OrderBy(pair => pair.Key))
-            lines.Add(CategoryLine(BolumChoice.TitleOf(extra.Key), extra.Value));
 
         _homeReport.Text = string.Join(Environment.NewLine, lines);
     }

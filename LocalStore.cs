@@ -831,7 +831,7 @@ internal sealed class LocalStore
             using var connection = Open();
             using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT b.kodid, i.line, i.name, i.qty, i.unit, i.invoice_no, i.invoice_date, b.track_code, b.tarih, b.bolum
+                SELECT b.kodid, i.line, i.name, i.qty, i.unit, i.invoice_no, i.invoice_date, b.track_code, b.tarih
                 FROM bag_items i
                 JOIN bags b ON b.id = i.bag_id
                 ORDER BY b.tarih, b.kodid, i.line
@@ -851,7 +851,6 @@ internal sealed class LocalStore
                     CargoRules.InvoiceDateText(reader.GetString(6)),
                     reader.GetString(7),
                     reader.GetString(8),
-                    reader.GetString(9),
                 ]);
             }
 

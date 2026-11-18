@@ -505,7 +505,7 @@ internal static class UiText
     public static string AddGoodsTip => Tr ? "Mal satırı ekle" : "Ավելացնել ապրանք";
     public static string TipClientCode => Tr ? "Ad, telefon veya son rakamlar. Enter seçer." : "Անուն, հեռախոս կամ վերջին թվերը։ Enter-ը ընտրում է։";
     public static string TipCheckCode => Tr ? "Listede yoksa yeni müşteri ekler." : "Եթե ցանկում չկա, ավելացնում է նոր հաճախորդ։";
-    public static string TipStorePhone => Tr ? "Mağazanın telefonu." : "Խանութի հեռախոսը։";
+    public static string TipStorePhone => Tr ? "Mağaza telefonu. Yoksa boş bırakın." : "Խանութի հեռախոսը։ Չկա՝ թողեք դատարկ։";
     public static string TipStoreName => Tr ? "Mağazanın adı." : "Խանութի անուն.";
     public static string TipType => Tr ? "Gönderinin türü." : "Ուղարկման տեսակը։";
     public static string TipNote => Tr ? "Çuvala not." : "Նշում պարկի մասին։";

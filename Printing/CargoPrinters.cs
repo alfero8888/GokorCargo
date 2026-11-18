@@ -160,15 +160,17 @@ internal static class CargoPrinters
             graphics.FillRectangle(ink, panel);
             var headHeight = Math.Min(5.2f, panel.Height * 0.2f);
             var head = new RectangleF(panel.X + 1f, panel.Y + 1f, panel.Width - 2f, headHeight);
-            if (show(PrintParts.LabelMark))
+            var mark = words.BolumMark(bag.Bolum);
+            var showMark = show(PrintParts.LabelMark) && mark.Length > 0;
+            if (showMark)
             {
                 var markBox = new RectangleF(head.X, head.Y, 16f, head.Height);
-                using var markFont = FitLabel(graphics, words.BolumMark(bag.Bolum), Part(PrintParts.LabelMark, 22f), markBox.Width - 1f);
-                graphics.DrawString(words.BolumMark(bag.Bolum), markFont, paper, markBox, center);
+                using var markFont = FitLabel(graphics, mark, Part(PrintParts.LabelMark, 22f), markBox.Width - 1f);
+                graphics.DrawString(mark, markFont, paper, markBox, center);
             }
             if (show(PrintParts.LabelFirm))
             {
-                var nameBox = new RectangleF(head.X + 16f, head.Y, head.Width - 16f, head.Height);
+                var nameBox = new RectangleF(head.X + (showMark ? 16f : 0f), head.Y, head.Width - (showMark ? 16f : 0f), head.Height);
                 using var nameFont = FitLabel(graphics, company, Part(PrintParts.LabelFirm, 12f), nameBox.Width - 1f);
                 graphics.DrawString(company, nameFont, paper, nameBox, center);
             }

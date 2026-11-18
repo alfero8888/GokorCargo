@@ -143,13 +143,7 @@ internal static partial class CargoRules
     {
         sigorta = 0;
         not1 = "0";
-        if (string.IsNullOrEmpty(bolum))
-        {
-            error = UiText.NeedType;
-            return false;
-        }
-
-        if (!InsuranceLocked(bolum))
+        if (!string.IsNullOrEmpty(bolum) && !InsuranceLocked(bolum))
         {
             var text = insuranceText.Trim();
             if (text.Length == 0)
@@ -295,7 +289,8 @@ internal static partial class CargoRules
     public static string NumberPrefix(string? station, string? operatorName, string bolum)
     {
         _ = station;
-        return FirstStationLetter(operatorName) + BolumChoice.Letter(string.IsNullOrEmpty(bolum) ? "2" : bolum);
+        _ = bolum;
+        return FirstStationLetter(operatorName);
     }
 
     public static string FirstStationLetter(string? branchName)
