@@ -26,8 +26,9 @@ internal sealed class BagContentsPanel : Panel
         _add.Click += (_, _) => AddEmpty();
         FieldTip.Bind(_add, () => UiText.AddGoodsTip);
         _add.Dock = DockStyle.None;
-        Controls.Add(_rows);
+        _rows.Dock = DockStyle.None;
         Controls.Add(_add);
+        Controls.Add(_rows);
         Resize += (_, _) =>
         {
             foreach (var row in _lines)
@@ -213,10 +214,10 @@ internal sealed class BagContentsPanel : Panel
             _lines[i].Width = width;
         }
 
+        _add.Location = new Point(Math.Max(0, ClientSize.Width - _add.Width), 0);
+        _rows.SetBounds(0, _add.Bottom + 2, Math.Max(280, ClientSize.Width), _rows.Height);
         _rows.PerformLayout();
-        var gap = Math.Max(8, (int)Math.Round(3.0 * DeviceDpi / 25.4));
-        _add.Location = new Point(0, _rows.Bottom + gap);
-        Height = _add.Bottom + Padding.Bottom + 4;
+        Height = _rows.Bottom + Padding.Bottom + 2;
         RowsChanged?.Invoke();
     }
 
@@ -253,8 +254,8 @@ internal sealed class BagContentsPanel : Panel
 
         public ItemRow(AutoCompleteStringCollection names)
         {
-            Height = 44;
-            Margin = new Padding(0, 2, 0, 2);
+            Height = 32;
+            Margin = new Padding(0, 1, 0, 1);
             _name.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
             _name.AutoCompleteSource = AutoCompleteSource.CustomSource;
             _name.AutoCompleteCustomSource = names;
@@ -262,13 +263,17 @@ internal sealed class BagContentsPanel : Panel
             _qty.Dock = DockStyle.None;
             _invoice.Dock = DockStyle.None;
             _invoiceDate.Dock = DockStyle.None;
-            _invoice.Width = 160;
-            _invoiceDate.Width = 158;
-            _invoiceDate.Height = 32;
-            _qty.Width = 90;
-            _qty.Font = Theme.Digits;
-            _invoice.Font = Theme.Digits;
-            _name.Width = 220;
+            _invoice.Width = 110;
+            _invoiceDate.Width = 118;
+            _invoiceDate.Height = 28;
+            _qty.Width = 64;
+            _unit.Width = 84;
+            _unit.Font = Theme.Small;
+            _qty.Font = Theme.Small;
+            _invoice.Font = Theme.Small;
+            _name.Font = Theme.Small;
+            _drop.Height = 28;
+            _name.Width = 160;
             foreach (var box in new Control[] { _invoice, _invoiceDate, _name, _qty, _unit, _drop })
                 box.Margin = new Padding(0, 0, 6, 0);
             FillUnits();
@@ -316,8 +321,8 @@ internal sealed class BagContentsPanel : Panel
             _captions.Controls.AddRange([_capInvoice, _capDate, _capName, _capQty, _capUnit]);
             var boxes = new FlowLayoutPanel
             {
-                Dock = DockStyle.Bottom,
-                Height = 40,
+                Dock = DockStyle.Fill,
+                Height = 30,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
                 Margin = new Padding(0),
@@ -349,7 +354,7 @@ internal sealed class BagContentsPanel : Panel
             set
             {
                 _captions.Visible = value;
-                Height = (value ? _captions.Height : 0) + 44;
+                Height = (value ? _captions.Height : 0) + 32;
             }
         }
 

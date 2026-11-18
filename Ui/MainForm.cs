@@ -10,7 +10,7 @@ internal sealed class MainForm : FullScreenForm
     private readonly SyncService _sync;
     private readonly AppUser _user;
     private readonly TextBox _code = Theme.Box();
-    private readonly ListBox _matches = new() { Font = Theme.Ui, IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
+    private readonly ListBox _matches = new() { Font = Theme.Small, IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
     private readonly System.Windows.Forms.Timer _searchTimer = new() { Interval = 250 };
     private Button _addClient = null!;
     private bool _searchMute;
@@ -435,7 +435,13 @@ internal sealed class MainForm : FullScreenForm
         gridHost.Margin = new Padding(12);
         gridHost.Padding = new Padding(8);
         _grid.Dock = DockStyle.Fill;
-        var bagTools = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.White };
+        var bagTools = new Panel { Dock = DockStyle.Top, Height = 36, BackColor = Color.White };
+        var bagFind = Theme.Box();
+        bagFind.Dock = DockStyle.Left;
+        bagFind.Width = 240;
+        bagFind.Font = Theme.Small;
+        bagFind.PlaceholderText = UiText.FindClient;
+        bagFind.TextChanged += (_, _) => FilterBags(bagFind.Text);
         _pickAll.Text = UiText.WholeBatch;
         _bind.Add(() => _pickAll.Text = UiText.WholeBatch);
         _pickAll.CheckedChanged += (_, _) => ToggleAllBags();
@@ -449,6 +455,7 @@ internal sealed class MainForm : FullScreenForm
         bagTools.Controls.Add(_deletePicked);
         bagTools.Controls.Add(exportItems);
         bagTools.Controls.Add(_pickAll);
+        bagTools.Controls.Add(bagFind);
         gridHost.Controls.Add(_grid);
         gridHost.Controls.Add(bagTools);
         var gridWrap = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 12), BackColor = Theme.Bg };
@@ -641,6 +648,7 @@ internal sealed class MainForm : FullScreenForm
         AddColumn("kilo", "Кг", 60);
         AddColumn("type", "Тип", 80);
         _grid.Columns["type"]!.Visible = false;
+        _grid.Columns["track"]!.Visible = false;
         AddColumn("mal", UiText.MalColumn, 160);
         AddColumn("iqty", "Miktar", 70);
         AddColumn("iunit", "Birim", 80);
@@ -651,8 +659,13 @@ internal sealed class MainForm : FullScreenForm
         AddColumn("operator", "Принял", 110);
         AddColumn("insurance", "Страховка", 80);
         AddColumn("store", "Магазин", 140);
-        AddColumn("time", "Время", 110);
+        AddColumn("time", "Время", 130);
         AddColumn("sync", "Сервер", 90);
+        _grid.Columns["ifatura"]!.Visible = false;
+        _grid.Columns["idate"]!.Visible = false;
+        _grid.Columns["insurance"]!.Visible = false;
+        _grid.Columns["time"]!.DisplayIndex = 2;
+        _grid.Columns["operator"]!.DisplayIndex = 3;
         _grid.Columns.Add(new DataGridViewButtonColumn
         {
             Name = "edit",
@@ -738,7 +751,7 @@ internal sealed class MainForm : FullScreenForm
             return;
         e.Paint(e.ClipBounds, DataGridViewPaintParts.Background | DataGridViewPaintParts.Border);
         var bounds = e.CellBounds;
-        bounds.Inflate(-6, -5);
+            bounds.Inflate(-3, -2);
         using var brush = new SolidBrush(Color.FromArgb(168, 40, 40));
         e.Graphics.FillRectangle(brush, bounds);
         TextRenderer.DrawText(
@@ -764,9 +777,9 @@ internal sealed class MainForm : FullScreenForm
         grid.BackgroundColor = Color.White;
         grid.BorderStyle = BorderStyle.None;
         grid.ScrollBars = ScrollBars.Both;
-        grid.Font = Theme.Ui;
-        grid.RowTemplate.Height = 34;
-        grid.ColumnHeadersHeight = 38;
+        grid.Font = Theme.Small;
+        grid.RowTemplate.Height = 26;
+        grid.ColumnHeadersHeight = 28;
         grid.EnableHeadersVisualStyles = false;
         grid.ColumnHeadersDefaultCellStyle.BackColor = Theme.Header;
         grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
@@ -1614,6 +1627,25 @@ internal sealed class MainForm : FullScreenForm
 
         _clientState.ForeColor = client is null ? Theme.Muted : Theme.Ok;
         _clientState.Text = state;
+    }
+
+    private void FilterBags(string text)
+    {
+        var q = text.Trim();
+        if (_grid.CurrentCell is not null)
+            _grid.CurrentCell = null;
+        foreach (DataGridViewRow row in _grid.Rows)
+        {
+            var bag = row.Tag as BagRecord ?? (row.Tag as ItemSlot)?.Bag;
+            var show = bag is null || q.Length == 0
+                || bag.KodId.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || bag.OperatorName.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || bag.TeslimEden.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || bag.Tarih.ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture).Contains(q, StringComparison.OrdinalIgnoreCase)
+                || CargoRules.ContentsBrief(bag.Items).Contains(q, StringComparison.OrdinalIgnoreCase);
+            if (row.Visible != show)
+                row.Visible = show;
+        }
     }
 
     private void AddRow(BagRecord bag)
